@@ -1,0 +1,687 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css');
+
+:root {
+  color-scheme: light;
+
+  /* Toss Design System Colors */
+  --toss-blue: #3182f6;
+  --toss-blue-hover: #1b64da;
+  --toss-blue-light: #e8f3ff;
+  --toss-red: #f04452;
+  --toss-red-light: #feecee;
+  --toss-green: #34c759;
+
+  /* Background / Surface */
+  --toss-bg: #f2f4f6;
+  --toss-card: #ffffff;
+  --toss-modal: #ffffff;
+  --toss-divider: #f2f4f6;
+
+  /* Text */
+  --toss-ink: #191f28;
+  --toss-ink-subtitle: #333d4b;
+  --toss-gray: #8b95a1;
+  --toss-gray-light: #b0b8c1;
+  --toss-gray-bg: #f2f4f6;
+
+  /* Shadows */
+  --toss-shadow-float: 0 2px 14px rgba(0, 0, 0, 0.04);
+  --toss-shadow-strong: 0 16px 40px rgba(0, 0, 0, 0.12);
+  --toss-overlay: rgba(0, 0, 0, 0.4);
+
+  /* 3D & Glow Extended */
+  --glow-blue: 0 0 20px rgba(49, 130, 246, 0.4), 0 0 60px rgba(49, 130, 246, 0.15);
+  --glow-blue-intense: 0 0 30px rgba(49, 130, 246, 0.7), 0 0 100px rgba(49, 130, 246, 0.3);
+  --glow-green: 0 0 20px rgba(52, 199, 89, 0.4), 0 0 60px rgba(52, 199, 89, 0.15);
+  --glow-gold: 0 0 20px rgba(255, 170, 0, 0.5), 0 0 80px rgba(255, 170, 0, 0.2);
+  --holo-gradient: linear-gradient(125deg,
+    rgba(255,0,128,0.15) 0%,
+    rgba(49,130,246,0.15) 25%,
+    rgba(0,255,200,0.15) 50%,
+    rgba(255,170,0,0.15) 75%,
+    rgba(255,0,128,0.15) 100%
+  );
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { min-height: 100%; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  position: relative;
+  margin: 0;
+  font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
+  color: var(--toss-ink);
+  background-color: var(--toss-bg);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection { background: var(--toss-blue-light); color: var(--toss-blue); }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb {
+  background: var(--toss-gray-light);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Base Toss UI ── */
+.toss-card {
+  background-color: var(--toss-card);
+  border-radius: 20px;
+  box-shadow: var(--toss-shadow-float);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toss-interactive-card {
+  background-color: var(--toss-card);
+  border-radius: 24px;
+  box-shadow: var(--toss-shadow-float);
+  transition: transform 0.2s cubic-bezier(0, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.toss-interactive-card:active { transform: scale(0.96); }
+
+.toss-cta { transition: transform 0.2s cubic-bezier(0, 0, 0.2, 1) !important; }
+.toss-cta:active { transform: scale(0.95) !important; }
+
+/* ── 3D Keyframe Animations ── */
+
+@keyframes particle-float {
+  0%   { transform: translateY(0px) translateX(0px) scale(1); opacity: 0.6; }
+  25%  { transform: translateY(-30px) translateX(15px) scale(1.1); opacity: 1; }
+  50%  { transform: translateY(-15px) translateX(-10px) scale(0.9); opacity: 0.7; }
+  75%  { transform: translateY(-40px) translateX(20px) scale(1.05); opacity: 0.9; }
+  100% { transform: translateY(0px) translateX(0px) scale(1); opacity: 0.6; }
+}
+
+@keyframes holo-float {
+  0%, 100% { transform: translateY(0px) rotateX(0deg); }
+  50%       { transform: translateY(-8px) rotateX(5deg); }
+}
+
+@keyframes holo-ring-spin {
+  from { transform: rotate(0deg) translateZ(0); }
+  to   { transform: rotate(360deg) translateZ(0); }
+}
+
+@keyframes holo-shimmer {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: var(--glow-blue); }
+  50%       { box-shadow: var(--glow-blue-intense); }
+}
+
+@keyframes scanline {
+  0%   { top: -100%; }
+  100% { top: 200%; }
+}
+
+@keyframes energy-ring-expand {
+  0%   { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes sphere-rotate {
+  from { transform: rotateY(0deg) rotateX(10deg); }
+  to   { transform: rotateY(360deg) rotateX(10deg); }
+}
+
+@keyframes data-stream {
+  0%   { opacity: 0; transform: translateY(-20px); }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(20px); }
+}
+
+@keyframes confetti-fall {
+  0%   { transform: translateY(-20px) rotateZ(0deg) rotateX(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotateZ(720deg) rotateX(360deg); opacity: 0; }
+}
+
+@keyframes particle-burst {
+  0%   { transform: translate(0,0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+}
+
+@keyframes glitch-shift-1 {
+  0%, 90%, 100% { transform: translateX(0); }
+  92%  { transform: translateX(-3px); }
+  94%  { transform: translateX(3px); }
+  96%  { transform: translateX(-1px); }
+}
+
+@keyframes glitch-shift-2 {
+  0%, 88%, 100% { transform: translateX(0); }
+  90%  { transform: translateX(3px); }
+  92%  { transform: translateX(-3px); }
+  94%  { transform: translateX(1px); }
+}
+
+@keyframes reveal-up-anim {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── Holographic Marker ── */
+
+.holo-marker-wrapper {
+  perspective: 300px;
+  animation: holo-float 3s ease-in-out infinite;
+  cursor: pointer;
+  filter: drop-shadow(0 4px 16px rgba(49,130,246,0.4));
+}
+
+.holo-marker-wrapper:hover {
+  filter: drop-shadow(0 8px 32px rgba(49,130,246,0.7));
+}
+
+.holo-marker {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-style: preserve-3d;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.holo-marker:hover { transform: scale(1.2) rotateY(15deg); }
+
+.holo-marker-body {
+  width: 44px;
+  height: 44px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: linear-gradient(135deg, #3182f6, #7c3aed);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(49,130,246,0.5), inset 0 0 20px rgba(255,255,255,0.2);
+}
+
+.holo-marker-body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--holo-gradient);
+  background-size: 300% 300%;
+  animation: holo-shimmer 3s ease infinite;
+  mix-blend-mode: overlay;
+  border-radius: inherit;
+}
+
+.holo-marker-body::after {
+  content: '';
+  position: absolute;
+  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  border-radius: 50% 50% 50% 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.4), transparent, rgba(255,255,255,0.1));
+  pointer-events: none;
+}
+
+.holo-marker-icon {
+  transform: rotate(45deg);
+  color: white;
+  z-index: 1;
+  position: relative;
+}
+
+.holo-marker-ring {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(49,130,246,0.5);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%) scale(1);
+  animation: energy-ring-expand 2s ease-out infinite;
+}
+
+.holo-marker-ring:nth-child(2) { animation-delay: 0.7s; }
+.holo-marker-ring:nth-child(3) { animation-delay: 1.4s; }
+
+.holo-marker-promo .holo-marker-body {
+  background: linear-gradient(135deg, #f5a623, #ff6b35);
+  box-shadow: 0 4px 20px rgba(245,166,35,0.5), inset 0 0 20px rgba(255,255,255,0.2);
+}
+.holo-marker-promo .holo-marker-ring { border-color: rgba(245,166,35,0.5); }
+.holo-marker-promo { filter: drop-shadow(0 4px 16px rgba(245,166,35,0.5)); }
+
+/* ── Holographic Card Shine ── */
+
+.holo-card {
+  position: relative;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  transition: transform 0.15s ease;
+}
+
+.holo-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--holo-gradient);
+  background-size: 400% 400%;
+  opacity: 0;
+  transition: opacity 0.3s;
+  animation: holo-shimmer 4s ease infinite;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.holo-card:hover::before { opacity: 1; }
+
+.holo-card-shine {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(255,255,255,0.25) 0%,
+    rgba(255,255,255,0.05) 40%,
+    transparent 70%
+  );
+  border-radius: inherit;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ── Magnetic Button ── */
+
+.magnetic-btn {
+  transition: box-shadow 0.2s ease, background 0.2s ease !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.magnetic-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.25), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  border-radius: inherit;
+}
+
+.magnetic-btn:hover::after { opacity: 1; }
+
+/* ── Scanline Overlay ── */
+
+.scanline-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+  z-index: 10;
+}
+
+.scanline-overlay::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 60px;
+  background: linear-gradient(transparent, rgba(49,130,246,0.04), transparent);
+  animation: scanline 4s linear infinite;
+}
+
+/* ── Confetti ── */
+.confetti-piece {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  animation: confetti-fall var(--duration, 3s) var(--delay, 0s) linear forwards;
+}
+
+/* ── Live Dot ── */
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #34c759;
+  box-shadow: none;
+  display: inline-block;
+}
+
+/* ── 3D Sphere ── */
+.sphere-3d-container {
+  perspective: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sphere-3d {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 30% 30%, #7c3aed, #3182f6 40%, #0f172a 100%);
+  box-shadow: var(--glow-blue), inset -10px -10px 30px rgba(0,0,0,0.3), inset 5px 5px 15px rgba(255,255,255,0.1);
+  animation: sphere-rotate 8s linear infinite;
+  transform-style: preserve-3d;
+  position: relative;
+  overflow: hidden;
+}
+
+.sphere-3d::before {
+  content: '';
+  position: absolute;
+  width: 60%; height: 60%;
+  top: 10%; left: 15%;
+  background: radial-gradient(ellipse at 40% 40%, rgba(255,255,255,0.4), transparent 70%);
+  border-radius: 50%;
+  transform: rotate(-30deg);
+}
+
+.sphere-3d::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 8px,
+    rgba(49,130,246,0.1) 8px,
+    rgba(49,130,246,0.1) 9px
+  );
+  border-radius: 50%;
+  animation: holo-shimmer 3s ease infinite;
+  background-size: 100% 200%;
+}
+
+/* ── Gradient / Glitch Text ── */
+.gradient-text {
+  background: linear-gradient(135deg, #191f28, #3182f6);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glitch-text { position: relative; }
+.glitch-text::before,
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+}
+
+.glitch-text::before {
+  color: #ff0080;
+  clip-path: polygon(0 30%, 100% 30%, 100% 50%, 0 50%);
+  animation: glitch-shift-1 4s infinite;
+}
+
+.glitch-text::after {
+  color: #00ffee;
+  clip-path: polygon(0 60%, 100% 60%, 100% 80%, 0 80%);
+  animation: glitch-shift-2 4s infinite;
+}
+
+/* ── Page Reveal ── */
+.reveal-up {
+  opacity: 0;
+  transform: translateY(40px);
+  animation: reveal-up-anim 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.reveal-up:nth-child(1) { animation-delay: 0.05s; }
+.reveal-up:nth-child(2) { animation-delay: 0.12s; }
+.reveal-up:nth-child(3) { animation-delay: 0.19s; }
+.reveal-up:nth-child(4) { animation-delay: 0.26s; }
+.reveal-up:nth-child(5) { animation-delay: 0.33s; }
+.reveal-up:nth-child(6) { animation-delay: 0.40s; }
+
+/* ── Tilt Card ── */
+.tilt-card {
+  transform-style: preserve-3d;
+  transition: transform 0.1s ease;
+  will-change: transform;
+}
+
+/* ── Final Product Polish ── */
+
+:root {
+  --atlas-surface: rgba(255, 255, 255, 0.92);
+  --atlas-surface-strong: #ffffff;
+  --atlas-border: rgba(25, 31, 40, 0.08);
+  --atlas-border-strong: rgba(25, 31, 40, 0.14);
+  --atlas-shadow: 0 14px 34px rgba(25, 31, 40, 0.12);
+  --atlas-shadow-soft: 0 8px 24px rgba(25, 31, 40, 0.08);
+  --atlas-green: #1a9c5f;
+  --atlas-green-light: #eaf8f0;
+  --atlas-gold: #b7791f;
+  --atlas-gold-light: #fff7df;
+  --atlas-radius-sm: 8px;
+  --atlas-radius-md: 12px;
+  --atlas-radius-lg: 16px;
+}
+
+.atlas-top-shell,
+.atlas-search-shell,
+.atlas-region-panel,
+.atlas-action-shell {
+  background: var(--atlas-surface);
+  border: 1px solid var(--atlas-border);
+  box-shadow: var(--atlas-shadow-soft);
+  backdrop-filter: blur(22px);
+}
+
+.atlas-top-shell {
+  border-radius: var(--atlas-radius-lg);
+}
+
+.atlas-brand-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--atlas-radius-md);
+  background: var(--toss-ink);
+  color: white;
+  box-shadow: 0 10px 20px rgba(25, 31, 40, 0.18);
+  flex-shrink: 0;
+}
+
+.atlas-eyebrow {
+  color: var(--toss-gray);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.atlas-headline {
+  color: var(--toss-ink);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.atlas-status-badge,
+.atlas-count-badge {
+  border: 1px solid transparent !important;
+  border-radius: var(--atlas-radius-sm) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  padding: 6px 10px !important;
+  text-transform: none !important;
+}
+
+.atlas-status-badge {
+  background: var(--atlas-green-light) !important;
+  color: var(--atlas-green) !important;
+}
+
+.atlas-count-badge {
+  background: var(--toss-bg) !important;
+  color: var(--toss-ink-subtitle) !important;
+}
+
+.atlas-search-shell {
+  border-radius: var(--atlas-radius-lg) !important;
+  overflow: hidden;
+}
+
+.atlas-search-shell input::placeholder {
+  color: var(--toss-gray);
+  font-weight: 600;
+}
+
+.atlas-result-list {
+  box-shadow: var(--atlas-shadow) !important;
+}
+
+.atlas-chip-row {
+  padding: 2px;
+}
+
+.atlas-filter-chip {
+  border: 1px solid var(--atlas-border) !important;
+  box-shadow: var(--atlas-shadow-soft) !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  border-radius: var(--atlas-radius-md) !important;
+}
+
+.atlas-region-panel {
+  box-shadow: var(--atlas-shadow) !important;
+}
+
+.atlas-action-shell {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.scanline-overlay {
+  display: none;
+}
+
+.holo-marker-wrapper {
+  animation: none;
+  filter: drop-shadow(0 10px 18px rgba(25, 31, 40, 0.18));
+}
+
+.holo-marker-wrapper:hover {
+  filter: drop-shadow(0 14px 24px rgba(25, 31, 40, 0.22));
+}
+
+.holo-marker {
+  width: 40px;
+  height: 40px;
+}
+
+.holo-marker:hover {
+  transform: translateY(-2px) scale(1.06);
+}
+
+.holo-marker-body {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px 12px 12px 4px;
+  background: var(--toss-ink);
+  box-shadow: 0 10px 22px rgba(25, 31, 40, 0.24), inset 0 0 0 1px rgba(255,255,255,0.18);
+}
+
+.holo-marker-body::before,
+.holo-marker-body::after,
+.holo-marker-ring {
+  display: none;
+}
+
+.holo-marker-icon {
+  font-size: 16px !important;
+}
+
+.holo-marker-promo .holo-marker-body {
+  background: linear-gradient(135deg, #b7791f, #e08b2a);
+  box-shadow: 0 10px 22px rgba(183, 121, 31, 0.24), inset 0 0 0 1px rgba(255,255,255,0.24);
+}
+
+.holo-marker-promo {
+  filter: drop-shadow(0 10px 18px rgba(183, 121, 31, 0.20));
+}
+
+.atlas-marker-label {
+  position: absolute;
+  bottom: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--atlas-border);
+  border-radius: var(--atlas-radius-sm);
+  padding: 4px 8px;
+  color: var(--toss-ink);
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 6px 16px rgba(25, 31, 40, 0.12);
+  backdrop-filter: blur(14px);
+}
+
+.atlas-marker-label-promo {
+  background: var(--atlas-gold-light);
+  color: var(--atlas-gold);
+  border-color: rgba(183, 121, 31, 0.22);
+}
+
+.toss-card,
+.toss-interactive-card {
+  border: 1px solid var(--atlas-border);
+  box-shadow: var(--atlas-shadow-soft);
+  border-radius: var(--atlas-radius-lg);
+}
+
+.kakao-map-container .chakra-button {
+  letter-spacing: 0;
+}
+
+@media (max-width: 767px) {
+  .atlas-top-shell {
+    align-items: flex-start;
+  }
+
+  .atlas-status-badge {
+    display: none !important;
+  }
+
+  .atlas-action-dock {
+    bottom: calc(env(safe-area-inset-bottom) + 86px) !important;
+  }
+}
+
+.atlas-auth-screen {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(248,250,252,0.94) 54%, #ffffff 100%);
+}
+
+.atlas-auth-screen canvas {
+  opacity: 0.34;
+}
+
+.atlas-auth-screen .gradient-text {
+  background: linear-gradient(135deg, var(--toss-ink), var(--toss-blue));
+  background-clip: text;
+  -webkit-background-clip: text;
+}
