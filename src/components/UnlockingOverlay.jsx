@@ -32,11 +32,11 @@ function EnergyCountdown({ isHacking }) {
   return (
     <Box position="relative" w="160px" h="160px" mx="auto" mb={6}>
       <svg width="160" height="160" viewBox="0 0 160 160">
-        <circle cx="80" cy="80" r={R} fill="none" stroke="var(--toss-divider)" strokeWidth="4" />
+        <circle cx="80" cy="80" r={R} fill="none" stroke="var(--atlas-divider)" strokeWidth="4" />
         <motion.circle
           cx="80" cy="80" r={R}
           fill="none"
-          stroke="var(--toss-blue)"
+          stroke="var(--atlas-primary)"
           strokeWidth="4"
           strokeLinecap="round"
           strokeDasharray={C}
@@ -59,14 +59,14 @@ function EnergyCountdown({ isHacking }) {
           w="56px"
           h="56px"
           borderRadius="14px"
-          bg={isHacking ? 'var(--toss-blue-light)' : 'var(--toss-bg)'}
-          color={isHacking ? 'var(--toss-blue)' : 'var(--toss-gray)'}
+          bg={isHacking ? 'var(--atlas-primary-soft)' : 'var(--atlas-bg)'}
+          color={isHacking ? 'var(--atlas-primary)' : 'var(--atlas-muted-text)'}
           align="center"
           justify="center"
         >
           <Icon as={FiLock} w={7} h={7} />
         </Flex>
-        <Text fontSize="xs" color={isHacking ? 'var(--toss-blue)' : 'var(--toss-gray)'} fontWeight="700">
+        <Text fontSize="xs" color={isHacking ? 'var(--atlas-primary)' : 'var(--atlas-muted-text)'} fontWeight="700">
           {isHacking ? '검증 중' : '잠김'}
         </Text>
       </Flex>
@@ -182,7 +182,7 @@ export default function UnlockingOverlay({ isVisible, capsule, userLocation, onC
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: -40, opacity: 0, scale: 0.95 }}
               transition={{ type: 'spring', damping: 20, stiffness: 200 }}
-              className="toss-card"
+              className="atlas-unlock-card"
               bg="white"
               borderRadius="16px"
               p={8}
@@ -191,31 +191,31 @@ export default function UnlockingOverlay({ isVisible, capsule, userLocation, onC
               position="relative"
               overflow="hidden"
             >
-              <Text color="var(--toss-blue)" fontSize="xs" fontWeight="800" letterSpacing="0" mb={4}>
+              <Text color="var(--atlas-primary)" fontSize="xs" fontWeight="800" letterSpacing="0" mb={4}>
                 현장 위치 인증
               </Text>
 
               <EnergyCountdown isHacking={isHacking} />
 
               {isHacking ? (
-                <Text color="var(--toss-blue)" fontSize="sm" fontWeight="700">
+                <Text color="var(--atlas-primary)" fontSize="sm" fontWeight="700">
                   서버에서 현재 위치를 확인하고 있습니다.
                 </Text>
               ) : (
                 <>
-                  <Text color="var(--toss-ink)" fontSize="xl" fontWeight="800" mb={1}>
+                  <Text color="var(--atlas-text)" fontSize="xl" fontWeight="800" mb={1}>
                     {capsule.title}
                   </Text>
-                  <Text color="var(--toss-gray)" fontSize="sm" lineHeight="1.6" mb={5}>
+                  <Text color="var(--atlas-muted-text)" fontSize="sm" lineHeight="1.6" mb={5}>
                     반경 {unlockRadius}m 안에서 서버 위치 검증을 통과해야 숨겨진 메시지를 열 수 있습니다.
                   </Text>
                   <HStack justify="center" spacing={3} mb={unlockError ? 3 : 8}>
-                    <Text color="var(--toss-gray)" fontSize="sm">현재 거리</Text>
+                    <Text color="var(--atlas-muted-text)" fontSize="sm">현재 거리</Text>
                     <Text
-                      color="var(--toss-blue)"
+                      color="var(--atlas-primary)"
                       fontSize="sm"
                       fontWeight="800"
-                      bg="var(--toss-blue-light)"
+                      bg="var(--atlas-primary-soft)"
                       px={2}
                       py={0.5}
                       borderRadius="8px"
@@ -225,25 +225,24 @@ export default function UnlockingOverlay({ isVisible, capsule, userLocation, onC
                   </HStack>
 
                   {unlockError && (
-                    <Box bg="var(--toss-red-light)" borderRadius="14px" px={4} py={3} mb={5}>
-                      <Text color="var(--toss-red)" fontSize="sm" fontWeight="700" lineHeight="1.5">
+                    <Box bg="var(--atlas-danger-soft)" borderRadius="14px" px={4} py={3} mb={5}>
+                      <Text color="var(--atlas-danger)" fontSize="sm" fontWeight="700" lineHeight="1.5">
                         {unlockError}
                       </Text>
                     </Box>
                   )}
 
                   <Button
+                    className="atlas-blue-button"
                     w="100%"
                     h="56px"
-                    bg="var(--toss-blue)"
-                    color="white"
                     borderRadius="16px"
                     fontSize="lg"
                     fontWeight="700"
                     onClick={handleUnlock}
                     isLoading={isHacking}
                     loadingText="서버 검증 중"
-                    _hover={{ bg: 'var(--toss-blue-hover)' }}
+                    _hover={{ bg: 'var(--atlas-primary-hover)' }}
                     _active={{ transform: 'scale(0.97)' }}
                     boxShadow="0 8px 24px rgba(49,130,246,0.35)"
                     mb={2}
@@ -254,7 +253,7 @@ export default function UnlockingOverlay({ isVisible, capsule, userLocation, onC
                     variant="ghost"
                     w="100%"
                     h="48px"
-                    color="var(--toss-gray)"
+                    color="var(--atlas-muted-text)"
                     borderRadius="16px"
                     onClick={onClose}
                   >
@@ -305,38 +304,37 @@ export default function UnlockingOverlay({ isVisible, capsule, userLocation, onC
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                <Text color="var(--toss-blue)" fontSize="xs" fontWeight="800" letterSpacing="0" mb={2}>
+                <Text color="var(--atlas-primary)" fontSize="xs" fontWeight="800" letterSpacing="0" mb={2}>
                   인증 완료
                 </Text>
-                <Text color="var(--toss-ink)" fontSize="2xl" fontWeight="800" mb={3}>
+                <Text color="var(--atlas-text)" fontSize="2xl" fontWeight="800" mb={3}>
                   숨겨진 메시지
                 </Text>
                 <Box
-                  bg="var(--toss-blue-light)"
+                  bg="var(--atlas-primary-soft)"
                   borderRadius="16px"
                   p={4}
                   mb={6}
                 >
-                  <Text color="var(--toss-blue)" fontSize="md" fontWeight="600" lineHeight="1.7">
+                  <Text color="var(--atlas-primary)" fontSize="md" fontWeight="600" lineHeight="1.7">
                     {unlockResult?.hint || capsule.hint || '이곳에 도착한 탐험가님을 진심으로 환영합니다.'}
                   </Text>
                 </Box>
-                <Box w="100%" h="1px" bg="var(--toss-divider)" mb={5} />
+                <Box w="100%" h="1px" bg="var(--atlas-divider)" mb={5} />
                 <Flex justify="space-between" align="center" mb={2}>
-                  <Text color="var(--toss-gray)" fontSize="sm">발견 순서</Text>
-                  <Text color="var(--toss-ink)" fontWeight="700">{rank}번째</Text>
+                  <Text color="var(--atlas-muted-text)" fontSize="sm">발견 순서</Text>
+                  <Text color="var(--atlas-text)" fontWeight="700">{rank}번째</Text>
                 </Flex>
                 <Flex justify="space-between" align="center" mb={7}>
-                  <Text color="var(--toss-gray)" fontSize="sm">매설자와의 거리</Text>
-                  <Text color="var(--toss-ink)" fontWeight="700">
+                  <Text color="var(--atlas-muted-text)" fontSize="sm">매설자와의 거리</Text>
+                  <Text color="var(--atlas-text)" fontWeight="700">
                     {formatDistance(unlockResult?.distance_meters ?? distance)}
                   </Text>
                 </Flex>
                 <Button
+                  className="atlas-blue-button"
                   w="100%"
                   h="56px"
-                  bg="var(--toss-blue)"
-                  color="white"
                   borderRadius="16px"
                   fontSize="lg"
                   fontWeight="700"

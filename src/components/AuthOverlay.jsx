@@ -196,7 +196,7 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
       position="fixed"
       inset={0}
       zIndex={100}
-      bg="var(--toss-card)"
+      bg="var(--atlas-card)"
       display="flex"
       flexDirection="column"
       overflow="hidden"
@@ -213,6 +213,12 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
           pointerEvents: 'none',
         }}
       />
+
+      <Box className="atlas-auth-visual" display={{ base: 'block', md: 'block' }}>
+        <span className="atlas-auth-pin" />
+        <span className="atlas-auth-pin" />
+        <span className="atlas-auth-pin" />
+      </Box>
 
       {/* 배경 그라디언트 오버레이 */}
       <Box
@@ -238,7 +244,7 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
               fontSize="xs"
               fontWeight="700"
               letterSpacing="0"
-              color="var(--toss-blue)"
+              color="var(--atlas-primary)"
               mb={4}
               display="flex"
               alignItems="center"
@@ -253,23 +259,23 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
               fontWeight="800"
               lineHeight="1.16"
               letterSpacing="0"
-              color="var(--toss-ink)"
+              color="var(--atlas-text)"
               mb={4}
             >
               {isLogin ? (
                 <>
-                  <span className="gradient-text">동네 탐험</span>을<br />다시 시작해요.
+                  <span className="gradient-text">내 동네 좌표</span>를<br />다시 열어보세요.
                 </>
               ) : (
                 <>
-                  나만의 <span className="gradient-text">아지트</span>를<br />기록해볼까요?
+                  나만의 <span className="gradient-text">비밀 장소</span>를<br />남겨보세요.
                 </>
               )}
             </Text>
-            <MotionText color="var(--toss-gray)" fontSize="lg" fontWeight="500" lineHeight="1.7">
+            <MotionText color="var(--atlas-muted-text)" fontSize="lg" fontWeight="500" lineHeight="1.7">
               {isLogin
                 ? '저장한 장소와 발견 기록을 이어서 확인하세요.'
-                : '지도 위에 남길 첫 장소를 준비해보세요.'}
+                : '실제 위치에 닿았을 때만 열리는 로컬 캡슐을 만듭니다.'}
             </MotionText>
           </MotionBox>
         </AnimatePresence>
@@ -286,14 +292,14 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
         mx="auto"
       >
         {/* 탭 스위처 */}
-        <Flex p={1} mb={7} borderRadius="14px" bg="var(--toss-bg)" boxShadow="inset 0 0 0 1px rgba(0,0,0,0.04)">
+        <Flex p={1} mb={7} borderRadius="14px" bg="var(--atlas-bg)" boxShadow="inset 0 0 0 1px rgba(0,0,0,0.04)">
           {[true, false].map((isL) => (
             <Button
               key={String(isL)}
               flex="1"
               h="52px"
               bg={isLogin === isL ? 'white' : 'transparent'}
-              color={isLogin === isL ? 'var(--toss-ink)' : 'var(--toss-gray)'}
+              color={isLogin === isL ? 'var(--atlas-text)' : 'var(--atlas-muted-text)'}
               boxShadow={isLogin === isL ? '0 2px 12px rgba(0,0,0,0.08)' : 'none'}
               _hover={{ bg: isLogin === isL ? 'white' : 'transparent' }}
               borderRadius="10px"
@@ -315,7 +321,7 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
             ].map(({ icon, type, placeholder, value, onChange }) => (
               <InputGroup key={type} size="lg">
                 <InputLeftElement pointerEvents="none" h="62px" ml={1}>
-                  <Icon as={icon} color="var(--toss-gray-light)" w={5} h={5} />
+                  <Icon as={icon} color="var(--atlas-faint-text)" w={5} h={5} />
                 </InputLeftElement>
                 <Input
                   h="62px"
@@ -323,15 +329,15 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
                   placeholder={placeholder}
                   value={value}
                   onChange={(e) => onChange(e.target.value)}
-                  bg="var(--toss-bg)"
+                  bg="var(--atlas-bg)"
                   border="1.5px solid transparent"
                   borderRadius="14px"
                   fontSize="lg"
-                  color="var(--toss-ink)"
-                  _placeholder={{ color: 'var(--toss-gray-light)', fontWeight: 500 }}
+                  color="var(--atlas-text)"
+                  _placeholder={{ color: 'var(--atlas-faint-text)', fontWeight: 500 }}
                   _focus={{
                     bg: 'white',
-                    borderColor: 'var(--toss-blue)',
+                    borderColor: 'var(--atlas-primary)',
                     boxShadow: '0 0 0 3px rgba(49,130,246,0.15)',
                   }}
                   transition="all 0.2s"
@@ -345,14 +351,14 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
                 type="submit"
                 w="100%"
                 h="62px"
-                bg="var(--toss-blue)"
+                bg="var(--atlas-primary)"
                 color="white"
                 borderRadius="14px"
                 fontSize="lg"
                 fontWeight="700"
                 isLoading={loading}
                 rightIcon={<FiArrowRight />}
-                _hover={{ bg: 'var(--toss-blue-hover)' }}
+                _hover={{ bg: 'var(--atlas-primary-hover)' }}
                 _active={{ transform: 'scale(0.97)' }}
                 boxShadow="0 8px 30px rgba(49, 130, 246, 0.35), 0 2px 8px rgba(49, 130, 246, 0.2)"
                 transition="all 0.2s cubic-bezier(0, 0, 0.2, 1)"

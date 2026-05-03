@@ -27,7 +27,7 @@ const shopItems = [
     description: '부족할 때 가볍게 보충하는 기본 팩',
     price: '₩2,900',
     icon: FiCompass,
-    iconBg: 'var(--toss-blue)',
+    iconBg: 'var(--atlas-primary)',
     isHot: false,
   },
   {
@@ -53,12 +53,13 @@ const shopItems = [
 function ShopItemCard({ item, isSelected, onClick }) {
   return (
     <Box
+      className={`atlas-shop-card ${isSelected ? 'atlas-shop-card-selected' : ''}`}
       onClick={onClick}
       p={5}
       borderRadius="14px"
       border="1px solid"
-      borderColor={isSelected ? 'var(--toss-blue)' : 'var(--atlas-border)'}
-      bg={isSelected ? 'var(--toss-blue-light)' : 'var(--toss-card)'}
+      borderColor={isSelected ? 'var(--atlas-primary)' : 'var(--atlas-border)'}
+      bg={isSelected ? 'var(--atlas-primary-soft)' : 'var(--atlas-card)'}
       cursor="pointer"
       transition="border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease"
       _hover={{ transform: 'translateY(-1px)', boxShadow: 'var(--atlas-shadow-soft)' }}
@@ -80,7 +81,7 @@ function ShopItemCard({ item, isSelected, onClick }) {
           <Box>
             <HStack spacing={2} mb={1}>
               <Text
-                color={isSelected ? 'var(--toss-blue)' : 'var(--toss-ink)'}
+                color={isSelected ? 'var(--atlas-primary)' : 'var(--atlas-text)'}
                 fontSize="lg"
                 fontWeight="700"
               >
@@ -88,8 +89,8 @@ function ShopItemCard({ item, isSelected, onClick }) {
               </Text>
               {item.isHot && (
                 <Box
-                  bg="var(--toss-red-light)"
-                  color="var(--toss-red)"
+                  bg="var(--atlas-danger-soft)"
+                  color="var(--atlas-danger)"
                   px={2}
                   py={0.5}
                   borderRadius="8px"
@@ -101,11 +102,11 @@ function ShopItemCard({ item, isSelected, onClick }) {
                 </Box>
               )}
             </HStack>
-            <Text color="var(--toss-gray)" fontSize="sm">{item.description}</Text>
+            <Text color="var(--atlas-muted-text)" fontSize="sm">{item.description}</Text>
           </Box>
         </HStack>
         <Text
-          color={isSelected ? 'var(--toss-blue)' : 'var(--toss-ink)'}
+          color={isSelected ? 'var(--atlas-primary)' : 'var(--atlas-text)'}
           fontSize="xl"
           fontWeight="800"
           flexShrink={0}
@@ -117,7 +118,7 @@ function ShopItemCard({ item, isSelected, onClick }) {
   );
 }
 
-export default function TossShopOverlay({ isOpen, onClose }) {
+export default function ShopOverlay({ isOpen, onClose }) {
   const [selectedItem, setSelectedItem] = useState(shopItems[1].id);
   const toast = useToast();
 
@@ -146,7 +147,7 @@ export default function TossShopOverlay({ isOpen, onClose }) {
         >
           <Box
             w="40px" h="4px"
-            bg="var(--toss-divider)"
+            bg="var(--atlas-divider)"
             borderRadius="full"
             mx="auto"
             mt={3} mb={1}
@@ -161,19 +162,19 @@ export default function TossShopOverlay({ isOpen, onClose }) {
           >
             <Box>
               <HStack spacing={2} mb={1}>
-                <Text color="var(--toss-gray)" fontSize="xs" fontWeight="700" letterSpacing="0">
+                <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="700" letterSpacing="0">
                   LOCAL ATLAS STORE
                 </Text>
-                <Badge borderRadius="8px" bg="var(--toss-blue-light)" color="var(--toss-blue)">
+                <Badge borderRadius="8px" bg="var(--atlas-primary-soft)" color="var(--atlas-primary)">
                   TEST MODE
                 </Badge>
               </HStack>
-              <Text color="var(--toss-ink)" fontSize="xl" fontWeight="800">
+              <Text color="var(--atlas-text)" fontSize="xl" fontWeight="800">
                 탐험 아이템 상점
               </Text>
             </Box>
             <Button variant="ghost" onClick={onClose} minW="auto" px={2}>
-              <Icon as={FiX} w={6} h={6} color="var(--toss-gray)" />
+              <Icon as={FiX} w={6} h={6} color="var(--atlas-muted-text)" />
             </Button>
           </DrawerHeader>
 
@@ -208,15 +209,14 @@ export default function TossShopOverlay({ isOpen, onClose }) {
           >
             <Box className="magnetic-btn" borderRadius="14px">
               <Button
+                className="atlas-blue-button"
                 w="100%"
                 h="60px"
-                bg="var(--toss-blue)"
-                color="white"
                 borderRadius="14px"
                 fontSize="lg"
                 fontWeight="700"
                 onClick={handlePayment}
-                _hover={{ bg: 'var(--toss-blue-hover)' }}
+                _hover={{ bg: 'var(--atlas-primary-hover)' }}
                 _active={{ transform: 'scale(0.97)' }}
                 boxShadow="0 8px 32px rgba(49,130,246,0.35)"
               >

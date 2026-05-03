@@ -3,7 +3,7 @@ import { Box, Flex, Spinner, Text, VStack, useDisclosure } from '@chakra-ui/reac
 import ExplorerMap from './components/ExplorerMap';
 import ExplorerDashboard from './components/ExplorerDashboard';
 import AuthOverlay from './components/AuthOverlay';
-import TossShopOverlay from './components/TossShopOverlay';
+import ShopOverlay from './components/ShopOverlay';
 import { supabase } from './supabaseClient';
 
 function AppBootSplash() {
@@ -17,27 +17,27 @@ function AppBootSplash() {
       bg="transparent"
     >
       <VStack
-        className="toss-card"
+        className="atlas-card"
         spacing={5}
         w="full"
         maxW="360px"
         p={{ base: 8, md: 10 }}
-        bg="var(--toss-card)"
+        bg="var(--atlas-card)"
         textAlign="center"
       >
         <Text
           fontFamily="heading"
           fontSize={{ base: '2xl', md: '3xl' }}
           fontWeight="700"
-          color="var(--toss-ink)"
+          color="var(--atlas-text)"
           letterSpacing="0"
         >
           LOCAL ATLAS
         </Text>
-        <Text color="var(--toss-gray)" fontSize="sm" lineHeight="1.7">
+        <Text color="var(--atlas-muted-text)" fontSize="sm" lineHeight="1.7">
           지도와 탐험 데이터를 불러오는 중입니다. 주변 아지트와 개인 탐험 기록을 곧 연결합니다.
         </Text>
-        <Spinner size="lg" color="var(--toss-blue)" thickness="4px" speed="0.7s" />
+        <Spinner size="lg" color="var(--atlas-primary)" thickness="4px" speed="0.7s" />
       </VStack>
     </Flex>
   );
@@ -137,8 +137,8 @@ function App() {
       <ExplorerDashboard isOpen={isDashboardOpen} onClose={onDashboardClose} userProfile={profile} />
       <AuthOverlay session={session} isReady={isAuthReady} setUserProfile={setProfile} />
       
-      {/* 상점 결제 모달 (Toss Pay Style) */}
-      <TossShopOverlay isOpen={isShopOpen} onClose={onShopClose} />
+      {/* 상점 결제 모달 (Store Modal) */}
+      <ShopOverlay isOpen={isShopOpen} onClose={onShopClose} />
     </Box>
   );
 }

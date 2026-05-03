@@ -7,23 +7,23 @@ const config = {
 
 const colors = {
   primary: {
-    50: '#EEF4FF',
-    100: '#DBE8FF',
-    200: '#BDD1FF',
-    300: '#97B6FF',
-    400: '#6D93FF',
-    500: '#3A6FFF',
-    600: '#2558E0',
-    700: '#1A43B0',
+    50: '#E7EFFF',
+    100: '#D5E3FF',
+    200: '#ABC6FF',
+    300: '#7DA4F8',
+    400: '#4D7EEA',
+    500: '#2563EB',
+    600: '#1749BD',
+    700: '#123A93',
   },
   accent: {
-    50: '#FFF1EB',
-    100: '#FFDCD0',
-    200: '#FFC1AE',
-    300: '#FF9C7E',
-    400: '#FF7B5D',
-    500: '#FF7657',
-    600: '#D95A3E',
+    50: '#FFF0EC',
+    100: '#FFE0D8',
+    200: '#FFC6B8',
+    300: '#F99E8A',
+    400: '#F07E66',
+    500: '#EF6A55',
+    600: '#C94C3D',
   },
   sand: {
     50: '#FFF9F3',
@@ -32,11 +32,11 @@ const colors = {
     300: '#E4C39F',
   },
   ink: {
-    900: '#181F33',
-    800: '#212A44',
-    700: '#34405D',
-    600: '#4D5A79',
-    500: '#707C99',
+    900: '#151A24',
+    800: '#1E2533',
+    700: '#394354',
+    600: '#536071',
+    500: '#687181',
   },
   bg: {
     50: '#FFFCF8',
@@ -65,14 +65,14 @@ const fonts = {
 const styles = {
   global: {
     ':root': {
-      '--chakra-colors-primary-500': '#3A6FFF',
-      '--chakra-colors-accent-500': '#FF7657',
+      '--chakra-colors-primary-500': '#2563EB',
+      '--chakra-colors-accent-500': '#EF6A55',
     },
     'html, body, #root': {
       minHeight: '100%',
     },
     body: {
-      bg: 'sand.50',
+      bg: 'bg.50',
       color: 'ink.900',
       margin: 0,
       backgroundImage: 'var(--app-bg)',

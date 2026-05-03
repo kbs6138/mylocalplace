@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Badge,
   Box,
@@ -8,6 +8,7 @@ import {
   IconButton,
   Input,
   InputGroup,
+  InputLeftElement,
   InputRightElement,
   List,
   ListItem,
@@ -18,6 +19,8 @@ import {
 } from '@chakra-ui/react';
 import {
   FiCompass,
+  FiActivity,
+  FiMenu,
   FiMapPin,
   FiNavigation,
   FiPlus,
@@ -36,6 +39,7 @@ import UnlockingOverlay from './UnlockingOverlay';
 
 const MotionText = motion.create(Text);
 const MotionBox = motion.create(Box);
+const MotionButton = motion.create(Button);
 const CAPSULE_LIST_FIELDS = [
   'id',
   'user_id',
@@ -79,11 +83,19 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const [mapInstance, setMapInstance] = useState(null);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const glideTimeoutRef = useRef(null);
   const [viewState, setViewState] = useState({
     longitude: 126.9780,
     latitude: 37.5665,
     level: 4,
   });
+  const viewLevelRef = useRef(4);
+
+  useEffect(() => {
+    viewLevelRef.current = viewState.level;
+  }, [viewState.level]);
 
   const categories = [
     '전체', '☕️ 로컬 카페', '🍽️ 동네 숨은 맛집', '🌄 나만 아는 경관', 
@@ -140,6 +152,52 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
   const [isRegionOpen, setIsRegionOpen] = useState(false);
   const [selectedDist, setSelectedDist] = useState(null);
   const [highlightRegion, setHighlightRegion] = useState(null);
+
+  const glideTo = useCallback(
+    (coords, nextLevel) => {
+      const currentLevel = viewLevelRef.current;
+      const targetLevel = nextLevel ?? currentLevel;
+
+      if (glideTimeoutRef.current) {
+        window.clearTimeout(glideTimeoutRef.current);
+      }
+
+      if (mapInstance && window.kakao?.maps) {
+        // 레벨 변경이 있을 경우 먼저 레벨 세팅 후 panTo
+        if (targetLevel !== currentLevel) {
+          mapInstance.setLevel(targetLevel, { animate: { duration: 350 } });
+        }
+        // panTo는 카카오맵 자체 부드러운 이동 사용
+        glideTimeoutRef.current = window.setTimeout(() => {
+          mapInstance.panTo(new window.kakao.maps.LatLng(coords.latitude, coords.longitude));
+          setViewState(prev => ({
+            ...prev,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            level: targetLevel,
+          }));
+          viewLevelRef.current = targetLevel;
+        }, targetLevel !== currentLevel ? 200 : 0);
+      } else {
+        // mapInstance 없을 때 fallback
+        setViewState(prev => ({
+          ...prev,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          level: targetLevel,
+        }));
+      }
+    },
+    [mapInstance],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (glideTimeoutRef.current) {
+        window.clearTimeout(glideTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleNewCapsule = (newCapsule) => {
     setAllCapsules(prev => [newCapsule, ...prev]);
@@ -250,7 +308,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
       longitude: parseFloat(place.x)
     };
     
-    setViewState(prev => ({ ...prev, ...coords, level: 3 }));
+    glideTo(coords, 3);
     setTargetCapsule(null);
     if (onMapClick) onMapClick(coords);
     setSearchResults([]);
@@ -272,7 +330,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
           latitude: position.coords.latitude,
         };
         setUserLocation(coords);
-        setViewState(prev => ({ ...prev, ...coords, level: 4 }));
+        glideTo(coords, 4);
         setIsLocating(false);
       },
       (geoError) => {
@@ -300,7 +358,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [loading, error]);
+  }, [loading, error, glideTo]);
 
   const toggleCategory = (cat) => {
     setSelectedCategories(prev => {
@@ -324,7 +382,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
     geocoder.addressSearch(query, (result, status) => {
       if (status === window.kakao.maps.services.Status.OK) {
         const coords = { latitude: parseFloat(result[0].y), longitude: parseFloat(result[0].x) };
-        setViewState({ ...coords, level: dong === 'all' ? 7 : 5 });
+        glideTo(coords, dong === 'all' ? 7 : 5);
         setHighlightRegion({
           center: { lat: coords.latitude, lng: coords.longitude },
           path: districts[selectedDist][dong] || [],
@@ -338,14 +396,11 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
 
   const handleGoToMyLocation = () => {
     if (userLocation) {
-      setViewState(prev => ({
-        ...prev,
-        ...userLocation,
-        level: 4,
-      }));
+      glideTo(userLocation, 4);
       setTargetCapsule(null);
       setIsRegionOpen(false);
       setSearchResults([]);
+      setIsActionMenuOpen(false);
     } else {
       setIsLocating(true);
       if (navigator.geolocation) {
@@ -356,7 +411,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
               latitude: position.coords.latitude,
             };
             setUserLocation(coords);
-            setViewState(prev => ({ ...prev, ...coords, level: 4 }));
+            glideTo(coords, 4);
             setIsLocating(false);
           },
           (geoError) => {
@@ -447,9 +502,10 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
       <Box w="100%" h="100%" position="absolute" inset={0} zIndex={0} pointerEvents="auto">
         <Map
           center={{ lat: viewState.latitude, lng: viewState.longitude }}
-          isPanto={true}
+          isPanto={false}
           style={{ width: '100%', height: '100%' }}
           level={viewState.level}
+          onCreate={(map) => setMapInstance(map)}
           onIdle={(map) =>
             setViewState(prev => ({
               ...prev,
@@ -508,7 +564,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                 className={`holo-marker-wrapper ${capsule.is_promoted ? 'holo-marker-promo' : ''}`}
                 onClick={() => {
                   setTargetCapsule(capsule);
-                  setViewState(prev => ({ ...prev, latitude: capsule.lat, longitude: capsule.lng, level: Math.min(prev.level, 3) }));
+                  glideTo({ latitude: capsule.lat, longitude: capsule.lng }, Math.min(viewLevelRef.current, 3));
                 }}
                 style={{ position: 'relative', display: 'inline-block' }}
               >
@@ -629,19 +685,15 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
           justify="center"
           direction="column"
           px={6}
-          bg="rgba(252, 249, 244, 0.84)"
+          bg="rgba(247, 246, 241, 0.82)"
           backdropFilter="blur(16px)"
         >
           <VStack
-            className="glass-panel interactive-card"
+            className="atlas-hud-card"
             spacing={5}
             maxW="360px"
             w="full"
             p={{ base: 7, md: 8 }}
-            borderRadius="16px"
-            bg="rgba(255,255,255,0.82)"
-            border="1px solid var(--surface-stroke)"
-            boxShadow="float"
             textAlign="center"
           >
             <Spinner size="xl" color="primary.500" thickness="4px" speed="0.8s" />
@@ -705,11 +757,14 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                   <Text className="atlas-headline" noOfLines={1}>
                     {activeRegionLabel}
                   </Text>
+                  <Text className="atlas-subline" noOfLines={1}>
+                    {userLocation ? '실시간 위치 기반 탐색' : '서울 기준 탐색 모드'}
+                  </Text>
                 </Box>
               </HStack>
               <HStack spacing={2} flexShrink={0}>
                 <Badge className="atlas-status-badge">
-                  {userLocation ? 'GPS 연결' : '기본 위치'}
+                  {userLocation ? 'GPS LIVE' : 'BASIC'}
                 </Badge>
                 <Badge className="atlas-count-badge">
                   {filteredCapsules.length}곳
@@ -719,12 +774,16 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
 
             <Box pointerEvents="auto">
               <InputGroup className="atlas-search-shell" size="lg">
+                <InputLeftElement h="54px" pointerEvents="none">
+                  <FiSearch color="var(--atlas-muted-text)" size={18} />
+                </InputLeftElement>
                 <Input
                   h="54px"
+                  pl="3.1rem"
                   pr="4.5rem"
                   placeholder="장소, 카테고리, 동네 검색"
                   bg="transparent"
-                  color="var(--toss-ink)"
+                  color="var(--atlas-text)"
                   border="none"
                   borderRadius="16px"
                   value={searchQuery}
@@ -732,14 +791,14 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleSearch();
                   }}
-                  _focus={{ ring: '2px', ringColor: 'var(--toss-blue)' }}
+                  _focus={{ ring: '2px', ringColor: 'var(--atlas-primary)' }}
                 />
                 <InputRightElement width="3.4rem" h="54px">
                   <IconButton
                     h="40px" w="40px" size="sm" borderRadius="12px"
-                    icon={isSearchLoading ? <Spinner size="xs" color="var(--toss-blue)" /> : <FiSearch />}
-                    bg="var(--toss-ink)" color="white"
-                    _hover={{ bg: 'var(--toss-ink-subtitle)' }}
+                    icon={isSearchLoading ? <Spinner size="xs" color="white" /> : <FiActivity />}
+                    bg="var(--atlas-text)" color="white"
+                    _hover={{ bg: 'var(--atlas-text-subtle)' }}
                     onClick={handleSearch} aria-label="검색"
                   />
                 </InputRightElement>
@@ -750,8 +809,8 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                   <Badge
                     as="button"
                     px={3} py={1.5} borderRadius="12px"
-                    bg="var(--toss-card)" color="var(--toss-ink)"
-                    boxShadow="var(--toss-shadow-float)"
+                    bg="var(--atlas-card)" color="var(--atlas-text)"
+                    boxShadow="var(--atlas-shadow-float)"
                     display="flex" alignItems="center" gap={1}
                     fontWeight="500"
                     onClick={() => {
@@ -794,7 +853,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                           h="38px"
                           align="center"
                           justify="center"
-                          borderRadius="14px"
+                          borderRadius="12px"
                           bg="primary.50"
                           color="primary.600"
                           flexShrink={0}
@@ -834,11 +893,11 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                   px={4}
                   leftIcon={<FiSliders />}
                   borderRadius="12px"
-                  bg={isRegionOpen ? 'var(--toss-ink)' : 'var(--toss-card)'}
-                  color={isRegionOpen ? 'white' : 'var(--toss-ink)'}
-                  border={isRegionOpen ? '1px solid var(--toss-ink)' : '1px solid var(--toss-card)'}
-                  boxShadow="var(--toss-shadow-float)"
-                  _hover={{ bg: isRegionOpen ? 'var(--toss-ink)' : 'var(--toss-gray-bg)' }}
+                  bg={isRegionOpen ? 'var(--atlas-text)' : 'var(--atlas-card)'}
+                  color={isRegionOpen ? 'white' : 'var(--atlas-text)'}
+                  border={isRegionOpen ? '1px solid var(--atlas-text)' : '1px solid var(--atlas-card)'}
+                  boxShadow="var(--atlas-shadow-float)"
+                  _hover={{ bg: isRegionOpen ? 'var(--atlas-text)' : 'var(--atlas-muted-bg)' }}
                   onClick={() => setIsRegionOpen(!isRegionOpen)}
                   flexShrink={0}
                 >
@@ -855,11 +914,11 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                       h="38px"
                       px={4}
                       borderRadius="12px"
-                      bg={isSelected ? 'var(--toss-blue)' : 'var(--toss-card)'}
-                      color={isSelected ? 'white' : 'var(--toss-ink)'}
-                      border={isSelected ? '1px solid var(--toss-blue)' : '1px solid var(--toss-card)'}
-                      boxShadow="var(--toss-shadow-float)"
-                      _hover={{ bg: isSelected ? 'var(--toss-blue-hover)' : 'var(--toss-gray-bg)' }}
+                      bg={isSelected ? 'var(--atlas-primary)' : 'var(--atlas-card)'}
+                      color={isSelected ? 'white' : 'var(--atlas-text)'}
+                      border={isSelected ? '1px solid var(--atlas-primary)' : '1px solid var(--atlas-card)'}
+                      boxShadow="var(--atlas-shadow-float)"
+                      _hover={{ bg: isSelected ? 'var(--atlas-primary-hover)' : 'var(--atlas-muted-bg)' }}
                       onClick={() => toggleCategory(category)}
                       flexShrink={0}
                     >
@@ -875,11 +934,11 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                 className="atlas-region-panel"
                 p={5}
                 borderRadius="16px"
-                bg="var(--toss-card)"
-                boxShadow="var(--toss-shadow-float)"
+                bg="var(--atlas-card)"
+                boxShadow="var(--atlas-shadow-float)"
                 pointerEvents="auto"
               >
-                <Text color="var(--toss-gray)" fontSize="xs" fontWeight="700" mb={3}>
+                <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="700" mb={3}>
                   지역 검색
                 </Text>
                 <HStack spacing={2} overflowX="auto" pb={1} mb={4}>
@@ -922,7 +981,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                           key={dong}
                           h="38px"
                           px={4}
-                      borderRadius="12px"
+                          borderRadius="12px"
                           bg="white"
                           color="gray.700"
                           border="1px solid"
@@ -945,84 +1004,139 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
         </MotionBox>
       )}
 
+      {/* 내 위치 바로가기 - 독립 플로팅 버튼 */}
       {!isLocating && (
-        <VStack className="atlas-action-dock" position="absolute" bottom="24px" right="16px" zIndex={15} spacing={3} pointerEvents="none">
-          <Box
-            className="atlas-action-shell"
-            p={2}
-            borderRadius="18px"
-            pointerEvents="auto"
+        <MotionBox
+          position="absolute"
+          bottom={{ base: '200px', md: '120px' }}
+          right="16px"
+          zIndex={20}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', damping: 18, stiffness: 260, delay: 0.15 }}
+        >
+          <Button
+            w="52px"
+            h="52px"
+            p={0}
+            bg="white"
+            color="gray.700"
+            border="1px solid"
+            borderColor="gray.200"
+            borderRadius="16px"
+            boxShadow="0 4px 16px rgba(0,0,0,0.12)"
+            onClick={handleGoToMyLocation}
+            _hover={{ bg: 'gray.50', transform: 'scale(1.08)', boxShadow: '0 6px 20px rgba(0,0,0,0.18)' }}
+            _active={{ transform: 'scale(0.95)' }}
+            transition="all 0.18s ease"
+            aria-label="내 위치로 이동"
           >
-            <VStack spacing={2}>
-              <Button
-                w={{ base: '56px', md: '160px' }}
-                h="56px"
-                px={{ base: 0, md: 4 }}
-                bg="white"
-                color="gray.700"
-                border="1px solid"
-                borderColor="gray.200"
-                borderRadius="14px"
-                leftIcon={<FiNavigation />}
-                justifyContent={{ base: 'center', md: 'flex-start' }}
-                onClick={handleGoToMyLocation}
-                _hover={{ bg: 'gray.50' }}
-              >
-                <Text display={{ base: 'none', md: 'block' }}>내 위치로</Text>
-              </Button>
-
-              <Button
-                w={{ base: '56px', md: '160px' }}
-                h="56px"
-                px={{ base: 0, md: 4 }}
-                bg="ink.900"
-                color="white"
-                borderRadius="14px"
-                leftIcon={<FiPlus />}
-                justifyContent={{ base: 'center', md: 'flex-start' }}
-                onClick={() => setIsPlantingOpen(true)}
-                _hover={{ bg: 'primary.700', transform: 'translateY(-1px)' }}
-              >
-                <Text display={{ base: 'none', md: 'block' }}>새 아지트</Text>
-              </Button>
-
-              <Button
-                w={{ base: '56px', md: '160px' }}
-                h="56px"
-                px={{ base: 0, md: 4 }}
-                bg="white"
-                color="gray.700"
-                border="1px solid"
-                borderColor="gray.200"
-                borderRadius="14px"
-                leftIcon={<FiShoppingBag />}
-                justifyContent={{ base: 'center', md: 'flex-start' }}
-                onClick={onShopOpen}
-                _hover={{ bg: 'gray.50' }}
-              >
-                <Text display={{ base: 'none', md: 'block' }}>상점</Text>
-              </Button>
-
-              <Button
-                w={{ base: '56px', md: '160px' }}
-                h="56px"
-                px={{ base: 0, md: 4 }}
-                bg="white"
-                color="gray.700"
-                border="1px solid"
-                borderColor="gray.200"
-                borderRadius="14px"
-                leftIcon={<FiUser />}
-                justifyContent={{ base: 'center', md: 'flex-start' }}
-                onClick={onDashboardOpen}
-                _hover={{ bg: 'gray.50' }}
-              >
-                <Text display={{ base: 'none', md: 'block' }}>대시보드</Text>
-              </Button>
-            </VStack>
-          </Box>
-        </VStack>
+            <FiNavigation size={20} />
+          </Button>
+        </MotionBox>
       )}
+
+      {/* 햄버거 액션 메뉴 */}
+      {!isLocating && (
+        <Box
+          position="absolute"
+          bottom={{ base: '136px', md: '48px' }}
+          right="16px"
+          zIndex={20}
+          style={{ position: 'absolute' }}
+        >
+          {/* 펼쳐진 메뉴 아이템들 - 햄버거 버튼 위로 순서대로 */}
+          {isActionMenuOpen && [
+            { icon: <FiUser size={20} />, label: '대시보드', onClick: () => { onDashboardOpen(); setIsActionMenuOpen(false); }, bg: 'white', color: 'gray.700' },
+            { icon: <FiShoppingBag size={20} />, label: '상점', onClick: () => { onShopOpen(); setIsActionMenuOpen(false); }, bg: 'white', color: 'gray.700' },
+            { icon: <FiPlus size={20} />, label: '새 아지트', onClick: () => { setIsPlantingOpen(true); setIsActionMenuOpen(false); }, bg: 'ink.900', color: 'white' },
+          ].map((item, index) => (
+            <MotionBox
+              key={item.label}
+              position="absolute"
+              bottom={`${(index + 1) * 64}px`}
+              right="0"
+              initial={{ scale: 0.5, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 320, delay: index * 0.055 }}
+              display="flex"
+              alignItems="center"
+              gap="8px"
+              justifyContent="flex-end"
+              style={{ pointerEvents: 'auto' }}
+            >
+              {/* 레이블 툴팁 */}
+              <MotionBox
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.055 + 0.1 }}
+                bg="rgba(20,20,30,0.85)"
+                backdropFilter="blur(10px)"
+                color="white"
+                fontSize="12px"
+                fontWeight="700"
+                px={3}
+                py={1.5}
+                borderRadius="10px"
+                whiteSpace="nowrap"
+                pointerEvents="none"
+                boxShadow="0 2px 10px rgba(0,0,0,0.2)"
+                letterSpacing="0.01em"
+              >
+                {item.label}
+              </MotionBox>
+              <Button
+                w="52px"
+                h="52px"
+                p={0}
+                bg={item.bg}
+                color={item.color}
+                border={item.bg === 'white' ? '1px solid' : 'none'}
+                borderColor="gray.200"
+                borderRadius="16px"
+                boxShadow="0 4px 18px rgba(0,0,0,0.15)"
+                onClick={item.onClick}
+                _hover={{ transform: 'scale(1.1)', boxShadow: '0 6px 24px rgba(0,0,0,0.22)' }}
+                _active={{ transform: 'scale(0.93)' }}
+                transition="all 0.16s ease"
+              >
+                {item.icon}
+              </Button>
+            </MotionBox>
+          ))}
+
+          {/* 햄버거/닫기 토글 버튼 */}
+          <Button
+            w="52px"
+            h="52px"
+            p={0}
+            bg={isActionMenuOpen ? 'ink.900' : 'white'}
+            color={isActionMenuOpen ? 'white' : 'gray.700'}
+            border={isActionMenuOpen ? 'none' : '1px solid'}
+            borderColor="gray.200"
+            borderRadius="16px"
+            boxShadow={isActionMenuOpen
+              ? '0 8px 28px rgba(20,20,40,0.35)'
+              : '0 4px 16px rgba(0,0,0,0.12)'}
+            onClick={() => setIsActionMenuOpen(prev => !prev)}
+            _hover={{ transform: 'scale(1.08)' }}
+            _active={{ transform: 'scale(0.94)' }}
+            transition="all 0.2s cubic-bezier(0.34,1.56,0.64,1)"
+            aria-label={isActionMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
+          >
+            <MotionBox
+              animate={{ rotate: isActionMenuOpen ? 135 : 0 }}
+              transition={{ type: 'spring', damping: 18, stiffness: 280 }}
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+            >
+              {isActionMenuOpen ? <FiX size={22} /> : <FiMenu size={22} />}
+            </MotionBox>
+          </Button>
+        </Box>
+      )}
+
 
       <PlantingDrawer
         isOpen={isPlantingOpen}

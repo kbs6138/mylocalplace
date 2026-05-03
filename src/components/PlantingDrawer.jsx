@@ -151,7 +151,7 @@ export default function PlantingDrawer({
       <DrawerContent
         mt="auto"
         maxH={{ base: '92vh', md: '84vh' }}
-        bg="white"
+        bg="var(--atlas-bg)"
         borderTopRadius="18px"
         borderTop="1px solid"
         borderColor="rgba(24, 31, 51, 0.08)"
@@ -204,13 +204,10 @@ export default function PlantingDrawer({
               <GridItem>
                 <VStack spacing={5} align="stretch">
                   <Box
-                    className="interactive-card"
+                    className="atlas-drawer-card"
                     p={5}
                     borderRadius="14px"
-                    bg="white"
-                    border="1px solid"
-                    borderColor="gray.100"
-                    boxShadow="soft"
+                    bg="var(--atlas-card)"
                   >
                     <Flex
                       direction={{ base: 'column', md: 'row' }}
@@ -246,13 +243,10 @@ export default function PlantingDrawer({
                   </Box>
 
                   <Box
-                    className="interactive-card"
+                    className="atlas-drawer-card"
                     p={{ base: 5, md: 6 }}
                     borderRadius="14px"
-                    bg="white"
-                    border="1px solid"
-                    borderColor="gray.100"
-                    boxShadow="soft"
+                    bg="var(--atlas-card)"
                   >
                     <VStack spacing={5} align="stretch">
                       <FormControl isRequired>
@@ -331,7 +325,7 @@ export default function PlantingDrawer({
               <GridItem>
                 <VStack spacing={5} align="stretch">
                   <Box
-                    className="interactive-card"
+                    className="atlas-drawer-card"
                     p={{ base: 5, md: 6 }}
                     borderRadius="14px"
                     bg="var(--panel-accent)"
@@ -415,13 +409,10 @@ export default function PlantingDrawer({
                   </Box>
 
                   <Box
-                    className="interactive-card"
+                    className="atlas-drawer-card"
                     p={{ base: 5, md: 6 }}
                     borderRadius="14px"
-                    bg="white"
-                    border="1px solid"
-                    borderColor="gray.100"
-                    boxShadow="soft"
+                    bg="var(--atlas-card)"
                   >
                     <Text color="gray.500" fontSize="xs" fontWeight="700" letterSpacing="0" mb={4}>
                       QUICK SUMMARY
@@ -489,7 +480,7 @@ export default function PlantingDrawer({
                 닫기
               </Button>
               <Button
-                className="cta-button interactive-card"
+                className="atlas-primary-button"
                 h="52px"
                 px={6}
                 bg="ink.900"
