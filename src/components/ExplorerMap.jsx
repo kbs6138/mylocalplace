@@ -31,7 +31,7 @@ import {
   FiUser,
   FiX,
 } from 'react-icons/fi';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Map, CustomOverlayMap, Polyline, Polygon, useKakaoLoader } from 'react-kakao-maps-sdk';
 import { supabase } from '../supabaseClient';
 import ExplorerHUD from './ExplorerHUD';
@@ -132,6 +132,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
   const [mapInstance, setMapInstance] = useState(null);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const glideTimeoutRef = useRef(null);
+  const glideSettleTimeoutRef = useRef(null);
   const hudCollapseSuppressTimeoutRef = useRef(null);
   const suppressHudCollapseRef = useRef(false);
   const lastRegionLookupRef = useRef(null);
@@ -165,6 +166,9 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
       if (glideTimeoutRef.current) {
         window.clearTimeout(glideTimeoutRef.current);
       }
+      if (glideSettleTimeoutRef.current) {
+        window.clearTimeout(glideSettleTimeoutRef.current);
+      }
 
       if (hudCollapseSuppressTimeoutRef.current) {
         window.clearTimeout(hudCollapseSuppressTimeoutRef.current);
@@ -177,6 +181,25 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
 
       if (mapInstance && window.kakao?.maps) {
         const targetLatLng = new window.kakao.maps.LatLng(coords.latitude, coords.longitude);
+        const moveToTarget = () => {
+          mapInstance.relayout();
+          mapInstance.panTo(targetLatLng);
+          setViewState(prev => ({
+            ...prev,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            level: targetLevel,
+          }));
+          viewLevelRef.current = targetLevel;
+        };
+
+        const scheduleSettledFocus = () => {
+          if (!options.visibleCenter) return;
+
+          glideSettleTimeoutRef.current = window.setTimeout(() => {
+            moveToTarget();
+          }, 360);
+        };
 
         if (targetLevel !== currentLevel) {
           mapInstance.panTo(targetLatLng);
@@ -186,28 +209,16 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
               anchor: targetLatLng,
               animate: { duration: 350 },
             });
-            mapInstance.panTo(targetLatLng);
-            setViewState(prev => ({
-              ...prev,
-              latitude: coords.latitude,
-              longitude: coords.longitude,
-              level: targetLevel,
-            }));
-            viewLevelRef.current = targetLevel;
+            moveToTarget();
+            scheduleSettledFocus();
           }, 140);
 
           return;
         }
 
         glideTimeoutRef.current = window.setTimeout(() => {
-          mapInstance.panTo(targetLatLng);
-          setViewState(prev => ({
-            ...prev,
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-            level: targetLevel,
-          }));
-          viewLevelRef.current = targetLevel;
+          moveToTarget();
+          scheduleSettledFocus();
         }, targetLevel !== currentLevel ? 200 : 0);
       } else {
         // mapInstance 없을 때 fallback
@@ -226,6 +237,9 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
     return () => {
       if (glideTimeoutRef.current) {
         window.clearTimeout(glideTimeoutRef.current);
+      }
+      if (glideSettleTimeoutRef.current) {
+        window.clearTimeout(glideSettleTimeoutRef.current);
       }
       if (hudCollapseSuppressTimeoutRef.current) {
         window.clearTimeout(hudCollapseSuppressTimeoutRef.current);
@@ -679,6 +693,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
             setIsHudSheetCollapsed(true);
             setSearchResults([]);
             setIsRegionOpen(false);
+            setIsActionMenuOpen(false);
             if (onMapClick) {
               onMapClick({
                 latitude: mouseEvent.latLng.getLat(),
@@ -994,55 +1009,65 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                 </Flex>
               )}
 
-              {searchResults.length > 0 && (
-                <List
-                  className="atlas-result-list"
-                  mt={3}
-                  borderRadius="16px"
-                  overflow="hidden"
-                  bg="rgba(255,255,255,0.96)"
-                  border="1px solid"
-                  borderColor="gray.100"
-                  boxShadow="soft"
-                >
-                  {searchResults.slice(0, 5).map((place, index) => (
-                    <ListItem
-                      className="interactive-card"
-                      key={place.id}
-                      px={4}
-                      py={3.5}
-                      borderBottom={index === Math.min(searchResults.length, 5) - 1 ? 'none' : '1px solid'}
+              <AnimatePresence>
+                {searchResults.length > 0 && (
+                  <MotionBox
+                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                    transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <List
+                      className="atlas-result-list"
+                      mt={3}
+                      borderRadius="16px"
+                      overflow="hidden"
+                      bg="rgba(255,255,255,0.96)"
+                      border="1px solid"
                       borderColor="gray.100"
-                      cursor="pointer"
-                      _hover={{ bg: 'gray.50' }}
-                      onClick={() => handleSelectPlace(place)}
+                      boxShadow="soft"
                     >
-                      <Flex align="center" gap={3}>
-                        <Flex
-                          w="38px"
-                          h="38px"
-                          align="center"
-                          justify="center"
-                          borderRadius="12px"
-                          bg="primary.50"
-                          color="primary.600"
-                          flexShrink={0}
+                      {searchResults.slice(0, 5).map((place, index) => (
+                        <ListItem
+                          className="interactive-card"
+                          key={place.id}
+                          px={4}
+                          py={3.5}
+                          borderBottom={index === Math.min(searchResults.length, 5) - 1 ? 'none' : '1px solid'}
+                          borderColor="gray.100"
+                          cursor="pointer"
+                          _hover={{ bg: 'gray.50' }}
+                          onClick={() => handleSelectPlace(place)}
                         >
-                          <FiCompass size={16} />
-                        </Flex>
-                        <Box>
-                          <Text color="ink.900" fontSize="sm" fontWeight="700">
-                            {place.place_name}
-                          </Text>
-                          <Text color="gray.500" fontSize="xs" mt={0.5}>
-                            {place.address_name}
-                          </Text>
-                        </Box>
-                      </Flex>
-                    </ListItem>
-                  ))}
-                </List>
-              )}
+                          <Flex align="center" gap={3}>
+                            <Flex
+                              className="atlas-result-icon"
+                              w="38px"
+                              h="38px"
+                              align="center"
+                              justify="center"
+                              borderRadius="12px"
+                              bg="primary.50"
+                              color="primary.600"
+                              flexShrink={0}
+                            >
+                              <FiCompass size={16} />
+                            </Flex>
+                            <Box minW={0}>
+                              <Text color="ink.900" fontSize="sm" fontWeight="700" noOfLines={1}>
+                                {place.place_name}
+                              </Text>
+                              <Text color="gray.500" fontSize="xs" mt={0.5} noOfLines={1}>
+                                {place.address_name}
+                              </Text>
+                            </Box>
+                          </Flex>
+                        </ListItem>
+                      ))}
+                    </List>
+                  </MotionBox>
+                )}
+              </AnimatePresence>
             </Box>
 
             <Box
@@ -1099,15 +1124,20 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
               </HStack>
             </Box>
 
-            {isRegionOpen && (
-              <Box
-                className="atlas-region-panel"
-                p={5}
-                borderRadius="16px"
-                bg="var(--atlas-card)"
-                boxShadow="var(--atlas-shadow-float)"
-                pointerEvents="auto"
-              >
+            <AnimatePresence>
+              {isRegionOpen && (
+                <MotionBox
+                  className="atlas-region-panel"
+                  p={5}
+                  borderRadius="16px"
+                  bg="var(--atlas-card)"
+                  boxShadow="var(--atlas-shadow-float)"
+                  pointerEvents="auto"
+                  initial={{ opacity: 0, y: -12, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                  transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                >
                 <Flex align="center" justify="space-between" gap={3} mb={4}>
                   <Box>
                     <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="800">
@@ -1192,8 +1222,9 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                     </Button>
                   </Flex>
                 )}
-              </Box>
-            )}
+                </MotionBox>
+              )}
+            </AnimatePresence>
           </VStack>
         </MotionBox>
       )}
@@ -1210,6 +1241,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
           transition={{ type: 'spring', damping: 18, stiffness: 260, delay: 0.15 }}
         >
           <Button
+            className="atlas-action-menu-button"
             w="52px"
             h="52px"
             p={0}
@@ -1240,6 +1272,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
           style={{ position: 'absolute' }}
         >
           {/* 펼쳐진 메뉴 아이템들 - 햄버거 버튼 위로 순서대로 */}
+          <AnimatePresence>
           {isActionMenuOpen && [
             { icon: <FiUser size={20} />, label: '대시보드', onClick: () => { onDashboardOpen(); setIsActionMenuOpen(false); }, bg: 'white', color: 'gray.700' },
             { icon: <FiShoppingBag size={20} />, label: '상점', onClick: () => { onShopOpen(); setIsActionMenuOpen(false); }, bg: 'white', color: 'gray.700' },
@@ -1253,6 +1286,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
               initial={{ scale: 0.5, opacity: 0, y: 16 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               transition={{ type: 'spring', damping: 20, stiffness: 320, delay: index * 0.055 }}
+              exit={{ scale: 0.8, opacity: 0, y: 12 }}
               display="flex"
               alignItems="center"
               gap="8px"
@@ -1280,6 +1314,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                 {item.label}
               </MotionBox>
               <Button
+                className="atlas-action-menu-button"
                 w="52px"
                 h="52px"
                 p={0}
@@ -1298,9 +1333,11 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
               </Button>
             </MotionBox>
           ))}
+          </AnimatePresence>
 
           {/* 햄버거/닫기 토글 버튼 */}
           <Button
+            className="atlas-action-menu-button"
             w="52px"
             h="52px"
             p={0}

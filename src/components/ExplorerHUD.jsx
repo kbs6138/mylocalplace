@@ -11,7 +11,7 @@ import {
   FiNavigation,
   FiZap,
 } from 'react-icons/fi';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const MotionBox = motion.create(Box);
 
@@ -284,8 +284,16 @@ export default function ExplorerHUD({
             </VStack>
           </Button>
 
-          {!isSheetCollapsed && (
-            hasTarget ? (
+          <AnimatePresence initial={false} mode="wait">
+            {!isSheetCollapsed && (
+              <MotionBox
+                key={hasTarget ? targetCapsule.id : 'empty-target'}
+                initial={{ opacity: 0, y: 18, filter: 'blur(8px)' }}
+                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, y: -10, filter: 'blur(6px)' }}
+                transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {hasTarget ? (
               <VStack align="stretch" spacing={5}>
                 <HStack justify="space-between" align="start" spacing={3}>
                   <HStack align="start" spacing={3} minW={0}>
@@ -400,8 +408,10 @@ export default function ExplorerHUD({
                   </Badge>
                 </HStack>
               </VStack>
-            )
-          )}
+            )}
+              </MotionBox>
+            )}
+          </AnimatePresence>
         </MotionBox>
       </Box>
     </Box>

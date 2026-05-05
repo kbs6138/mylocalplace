@@ -14,6 +14,7 @@ import {
 import { FiArrowRight, FiLock, FiMail } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabaseClient';
+import AtlasGlobe from './AtlasGlobe';
 
 const MotionBox = motion.create(Box);
 const MotionText = motion.create(Text);
@@ -66,7 +67,7 @@ function useParticleCanvas(canvasRef) {
         const dx = mouse.x - p.x;
         const dy = mouse.y - p.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 120) {
+        if (dist > 0 && dist < 120) {
           p.vx -= (dx / dist) * 0.3;
           p.vy -= (dy / dist) * 0.3;
         }
@@ -122,16 +123,18 @@ function useMagneticEffect(ref) {
 
     const onMove = (e) => {
       const rect = btn.getBoundingClientRect();
-      btn.style.transform = 'translate(0, 0)';
+      const offsetX = e.clientX - rect.left - rect.width / 2;
+      const offsetY = e.clientY - rect.top - rect.height / 2;
 
       const mx = ((e.clientX - rect.left) / rect.width) * 100;
       const my = ((e.clientY - rect.top) / rect.height) * 100;
       btn.style.setProperty('--mouse-x', `${mx}%`);
       btn.style.setProperty('--mouse-y', `${my}%`);
+      btn.style.transform = `translate(${offsetX * 0.045}px, ${offsetY * 0.08}px)`;
     };
 
     const onLeave = () => {
-              btn.style.transform = 'translate(0, 0)';
+      btn.style.transform = 'translate(0, 0)';
     };
 
     btn.addEventListener('mousemove', onMove);
@@ -203,6 +206,7 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
     >
       {/* 3D 파티클 캔버스 배경 */}
       <canvas
+        className="atlas-auth-particles"
         ref={canvasRef}
         style={{
           position: 'absolute',
@@ -215,6 +219,9 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
       />
 
       <Box className="atlas-auth-visual" display={{ base: 'block', md: 'block' }}>
+        <AtlasGlobe className="atlas-auth-globe" size={360} intensity={0.92} />
+        <span className="atlas-auth-orbit-label atlas-auth-orbit-label-one">SEOUL</span>
+        <span className="atlas-auth-orbit-label atlas-auth-orbit-label-two">LIVE</span>
         <span className="atlas-auth-pin" />
         <span className="atlas-auth-pin" />
         <span className="atlas-auth-pin" />
@@ -283,12 +290,10 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
 
       {/* Bottom Section */}
       <Box
+        className="atlas-auth-form-shell"
         position="relative"
         zIndex={2}
-        px={{ base: 6, md: 12 }}
         pb="calc(env(safe-area-inset-bottom) + 40px)"
-        maxW="560px"
-        w="100%"
         mx="auto"
       >
         {/* 탭 스위처 */}

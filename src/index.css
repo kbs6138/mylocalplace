@@ -73,6 +73,8 @@
     rgba(255,170,0,0.15) 75%,
     rgba(255,0,128,0.15) 100%
   );
+  --atlas-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --atlas-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 * { box-sizing: border-box; }
@@ -125,15 +127,16 @@ textarea:focus-visible {
   background-color: var(--atlas-card);
   border-radius: 14px;
   box-shadow: var(--atlas-shadow-float);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.24s var(--atlas-ease-out), box-shadow 0.24s var(--atlas-ease-out), border-color 0.24s var(--atlas-ease-out);
 }
 
 .atlas-interactive-card {
   background-color: var(--atlas-card);
   border-radius: 14px;
   box-shadow: var(--atlas-shadow-float);
-  transition: transform 0.2s cubic-bezier(0, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0, 0, 0.2, 1);
+  transition: transform 0.24s var(--atlas-ease-out), box-shadow 0.24s var(--atlas-ease-out), border-color 0.24s var(--atlas-ease-out);
   cursor: pointer;
+  will-change: transform;
 }
 
 .atlas-interactive-card:active { transform: scale(0.96); }
@@ -358,9 +361,10 @@ textarea:focus-visible {
 /* ── Magnetic Button ── */
 
 .magnetic-btn {
-  transition: box-shadow 0.2s ease, background 0.2s ease !important;
+  transition: transform 0.22s var(--atlas-ease-out), box-shadow 0.2s ease, background 0.2s ease !important;
   position: relative;
   overflow: hidden;
+  will-change: transform;
 }
 
 .magnetic-btn::after {
@@ -508,6 +512,52 @@ textarea:focus-visible {
   will-change: transform;
 }
 
+/* ── Three.js Atlas Globe ── */
+.atlas-globe {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  contain: layout paint;
+  pointer-events: auto;
+  transform-style: preserve-3d;
+}
+
+.atlas-globe canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.atlas-globe::before {
+  content: '';
+  position: absolute;
+  inset: 9%;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 999px;
+  transform: rotateX(68deg) rotateZ(-20deg);
+  pointer-events: none;
+}
+
+.atlas-globe::after {
+  content: '';
+  position: absolute;
+  inset: 2%;
+  border-radius: 999px;
+  background:
+    linear-gradient(130deg, rgba(255,255,255,0.18), transparent 42%),
+    linear-gradient(310deg, rgba(113,221,176,0.14), transparent 48%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.atlas-globe-fallback {
+  background:
+    repeating-linear-gradient(0deg, rgba(37,99,235,0.16) 0 1px, transparent 1px 18px),
+    repeating-linear-gradient(90deg, rgba(31,157,104,0.14) 0 1px, transparent 1px 18px),
+    linear-gradient(135deg, rgba(37,99,235,0.12), rgba(31,157,104,0.12));
+}
+
 /* ── Final Product Polish ── */
 
 :root {
@@ -618,6 +668,19 @@ textarea:focus-visible {
 
 .atlas-result-list {
   box-shadow: var(--atlas-shadow) !important;
+  transform-origin: top center;
+}
+
+.atlas-result-list .interactive-card {
+  transition: background 0.2s var(--atlas-ease-out), transform 0.2s var(--atlas-ease-out);
+}
+
+.atlas-result-list .interactive-card:hover {
+  transform: translateX(2px);
+}
+
+.atlas-result-icon {
+  box-shadow: inset 0 0 0 1px rgba(37,99,235,0.08);
 }
 
 .atlas-chip-row {
@@ -633,6 +696,11 @@ textarea:focus-visible {
   border-radius: var(--atlas-radius-md) !important;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+  transition: transform 0.2s var(--atlas-ease-out), box-shadow 0.2s var(--atlas-ease-out), background 0.2s var(--atlas-ease-out) !important;
+}
+
+.atlas-filter-chip:hover {
+  transform: translateY(-1px);
 }
 
 .atlas-region-panel {
@@ -656,8 +724,9 @@ textarea:focus-visible {
 }
 
 .holo-marker-wrapper {
-  animation: none;
+  animation: holo-float 4s ease-in-out infinite;
   filter: drop-shadow(0 10px 18px rgba(25, 31, 40, 0.18));
+  transform-origin: center bottom;
 }
 
 .holo-marker-wrapper:hover {
@@ -677,7 +746,9 @@ textarea:focus-visible {
   width: 38px;
   height: 38px;
   border-radius: 12px 12px 12px 4px;
-  background: var(--atlas-text);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.14), transparent),
+    var(--atlas-text);
   box-shadow: 0 10px 22px rgba(25, 31, 40, 0.24), inset 0 0 0 1px rgba(255,255,255,0.18);
 }
 
@@ -718,6 +789,13 @@ textarea:focus-visible {
   font-weight: 800;
   box-shadow: 0 6px 16px rgba(25, 31, 40, 0.12);
   backdrop-filter: blur(14px);
+  opacity: 0.82;
+  transition: transform 0.2s var(--atlas-ease-out), opacity 0.2s var(--atlas-ease-out);
+}
+
+.holo-marker-wrapper:hover .atlas-marker-label {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
 }
 
 .atlas-marker-label-promo {
@@ -731,6 +809,16 @@ textarea:focus-visible {
   border: 1px solid var(--atlas-border);
   box-shadow: var(--atlas-shadow-soft);
   border-radius: var(--atlas-radius-lg);
+}
+
+.interactive-card,
+.atlas-touch-card {
+  transition: transform 0.2s var(--atlas-ease-out), box-shadow 0.2s var(--atlas-ease-out), background 0.2s var(--atlas-ease-out);
+}
+
+.interactive-card:active,
+.atlas-touch-card:active {
+  transform: scale(0.98);
 }
 
 .kakao-map-container .chakra-button {
@@ -756,7 +844,7 @@ textarea:focus-visible {
     linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(248,250,252,0.94) 54%, #ffffff 100%);
 }
 
-.atlas-auth-screen canvas {
+.atlas-auth-particles {
   opacity: 0.34;
 }
 
@@ -774,12 +862,13 @@ textarea:focus-visible {
   border: 1px solid rgba(21, 26, 36, 0.08);
   border-radius: 18px;
   background:
-    linear-gradient(135deg, rgba(255,255,255,0.84), rgba(255,255,255,0.56)),
+    linear-gradient(135deg, rgba(255,255,255,0.88), rgba(255,255,255,0.58)),
     repeating-linear-gradient(0deg, rgba(37,99,235,0.10) 0 1px, transparent 1px 34px),
     repeating-linear-gradient(90deg, rgba(31,157,104,0.10) 0 1px, transparent 1px 34px);
   box-shadow: 0 28px 70px rgba(21, 26, 36, 0.12);
   overflow: hidden;
   pointer-events: none;
+  transform: perspective(1200px) rotateX(1deg) rotateY(-5deg);
 }
 
 .atlas-auth-visual::before,
@@ -804,6 +893,46 @@ textarea:focus-visible {
   left: 42%;
   top: 18%;
   border-color: rgba(239, 106, 85, 0.28);
+}
+
+.atlas-auth-globe {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: 88%;
+  max-height: 88%;
+  transform: translate(-50%, -50%);
+  opacity: 0.95;
+  pointer-events: auto;
+}
+
+.atlas-auth-orbit-label {
+  position: absolute;
+  z-index: 2;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(21, 26, 36, 0.08);
+  color: var(--atlas-text);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 10px 22px rgba(21, 26, 36, 0.09);
+}
+
+.atlas-auth-orbit-label-one {
+  left: 16%;
+  top: 22%;
+}
+
+.atlas-auth-orbit-label-two {
+  right: 18%;
+  bottom: 20%;
+  color: var(--atlas-mint);
+}
+
+.atlas-auth-form-shell {
+  width: min(calc(100% - 48px), 464px);
 }
 
 .atlas-auth-pin {
@@ -947,6 +1076,7 @@ textarea:focus-visible {
 
 .atlas-bottom-sheet {
   border-radius: 18px 18px 0 0;
+  transform-origin: bottom center;
 }
 
 .atlas-target-compass {
@@ -1006,6 +1136,17 @@ textarea:focus-visible {
   opacity: 0.55;
 }
 
+.atlas-dashboard-hero-globe {
+  position: absolute;
+  right: clamp(-90px, -4vw, -26px);
+  top: clamp(-72px, -4vw, -24px);
+  width: 250px;
+  height: 250px;
+  opacity: 0.36;
+  pointer-events: auto;
+  z-index: 0;
+}
+
 .atlas-dashboard-page {
   background:
     radial-gradient(circle at 18% 8%, rgba(37,99,235,0.08), transparent 26%),
@@ -1063,6 +1204,13 @@ textarea:focus-visible {
   border-radius: 14px;
   background: rgba(244,245,241,0.76);
   border: 1px solid rgba(21,26,36,0.06);
+  transition: transform 0.2s var(--atlas-ease-out), border-color 0.2s var(--atlas-ease-out), background 0.2s var(--atlas-ease-out);
+}
+
+.atlas-dashboard-list-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(37, 99, 235, 0.16);
+  background: rgba(255,255,255,0.86);
 }
 
 .atlas-empty-state {
@@ -1090,6 +1238,16 @@ textarea:focus-visible {
   border-color: rgba(37, 99, 235, 0.42) !important;
   background:
     linear-gradient(135deg, rgba(231,239,255,0.94), rgba(255,255,255,0.98)) !important;
+}
+
+.atlas-shop-card:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 3px;
+}
+
+.atlas-action-menu-button {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .atlas-mobile-safe-bottom {

@@ -31,6 +31,7 @@ import {
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { supabase } from '../supabaseClient';
+import AtlasGlobe from './AtlasGlobe';
 
 const MotionBox = motion.create(Box);
 
@@ -235,6 +236,9 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                 >
+                  <Box className="atlas-dashboard-hero-globe">
+                    <AtlasGlobe size={250} intensity={0.78} />
+                  </Box>
                   <VStack align="stretch" spacing={7} position="relative" zIndex={1}>
                     <Flex direction={{ base: 'column', md: 'row' }} gap={5} justify="space-between">
                       <HStack align="start" spacing={4} minW={0}>

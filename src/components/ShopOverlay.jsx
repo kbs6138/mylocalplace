@@ -55,6 +55,14 @@ function ShopItemCard({ item, isSelected, onClick }) {
     <Box
       className={`atlas-shop-card ${isSelected ? 'atlas-shop-card-selected' : ''}`}
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      role="button"
+      tabIndex={0}
       p={5}
       borderRadius="14px"
       border="1px solid"
@@ -66,7 +74,7 @@ function ShopItemCard({ item, isSelected, onClick }) {
       boxShadow={isSelected ? 'var(--atlas-shadow-soft)' : 'none'}
     >
       <Flex justify="space-between" align="center" gap={4}>
-        <HStack spacing={4}>
+        <HStack spacing={4} minW={0}>
           <Flex
             w="48px"
             h="48px"
@@ -78,12 +86,13 @@ function ShopItemCard({ item, isSelected, onClick }) {
           >
             <Icon as={item.icon} color="white" w={6} h={6} />
           </Flex>
-          <Box>
+          <Box minW={0}>
             <HStack spacing={2} mb={1}>
               <Text
                 color={isSelected ? 'var(--atlas-primary)' : 'var(--atlas-text)'}
                 fontSize="lg"
                 fontWeight="700"
+                noOfLines={1}
               >
                 {item.title}
               </Text>
@@ -102,7 +111,7 @@ function ShopItemCard({ item, isSelected, onClick }) {
                 </Box>
               )}
             </HStack>
-            <Text color="var(--atlas-muted-text)" fontSize="sm">{item.description}</Text>
+            <Text color="var(--atlas-muted-text)" fontSize="sm" noOfLines={2}>{item.description}</Text>
           </Box>
         </HStack>
         <Text
@@ -110,6 +119,7 @@ function ShopItemCard({ item, isSelected, onClick }) {
           fontSize="xl"
           fontWeight="800"
           flexShrink={0}
+          whiteSpace="nowrap"
         >
           {item.price}
         </Text>
@@ -186,6 +196,7 @@ export default function ShopOverlay({ isOpen, onClose }) {
                     key={item.id}
                     initial={{ opacity: 0, x: -30 }}
                     animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 18 }}
                     transition={{ delay: idx * 0.08, duration: 0.4, ease: [0.16,1,0.3,1] }}
                   >
                     <ShopItemCard
