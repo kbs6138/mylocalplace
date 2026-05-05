@@ -12,6 +12,7 @@ import {
   InputRightElement,
   List,
   ListItem,
+  Select,
   Spinner,
   Text,
   VStack,
@@ -64,6 +65,50 @@ function withCapsuleDefaults(capsule) {
   };
 }
 
+function indexRegions(regions, byAddress) {
+  regions.forEach((region) => {
+    byAddress.set(region.address, region);
+    if (region.children) indexRegions(region.children, byAddress);
+  });
+}
+
+function createRegionCatalog(regions) {
+  const byAddress = new globalThis.Map();
+  indexRegions(regions, byAddress);
+  return { roots: regions, byAddress, isLoaded: true };
+}
+
+function getRegionChildren(regionCatalog, path, level) {
+  if (level === 0) return regionCatalog.roots;
+  const parent = regionCatalog.byAddress.get(path[level - 1]);
+  return parent?.children || [];
+}
+
+function getRegionPath(addressName, byAddress) {
+  if (!addressName) return [];
+
+  const parts = addressName.split(/\s+/).filter(Boolean);
+  const path = [];
+  let current = '';
+
+  parts.forEach((part) => {
+    const next = current ? `${current} ${part}` : part;
+    if (byAddress.has(next)) {
+      path.push(next);
+      current = next;
+    }
+  });
+
+  return path;
+}
+
+function getRegionColumnLabel(options, level) {
+  if (level === 0) return '시/도';
+  if (options.some((option) => /[시군구]$/.test(option.name))) return '시/군/구';
+  if (options.some((option) => /[읍면동가로]$/.test(option.name))) return '읍/면/동';
+  return '리';
+}
+
 export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardOpen, onShopOpen, userProfile }) {
   const [loading, error] = useKakaoLoader({
     appkey: import.meta.env.VITE_KAKAO_API_KEY || '',
@@ -76,6 +121,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
   );
   const [userLocation, setUserLocation] = useState(null);
   const [targetCapsule, setTargetCapsule] = useState(null);
+  const [isHudSheetCollapsed, setIsHudSheetCollapsed] = useState(true);
   const [unlockingCapsule, setUnlockingCapsule] = useState(null);
   const [allCapsules, setAllCapsules] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState(['전체']);
@@ -86,6 +132,9 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
   const [mapInstance, setMapInstance] = useState(null);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const glideTimeoutRef = useRef(null);
+  const hudCollapseSuppressTimeoutRef = useRef(null);
+  const suppressHudCollapseRef = useRef(false);
+  const lastRegionLookupRef = useRef(null);
   const [viewState, setViewState] = useState({
     longitude: 126.9780,
     latitude: 37.5665,
@@ -102,59 +151,14 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
     '🌃 비밀 야경', '🎧 인디 음악/바', '🧩 기타 아지트'
   ];
 
-  const districts = {
-    '강남구': {
-      'all': [
-        { lat: 37.525, lng: 127.020 }, { lat: 37.535, lng: 127.050 },
-        { lat: 37.510, lng: 127.070 }, { lat: 37.480, lng: 127.060 },
-        { lat: 37.460, lng: 127.040 }, { lat: 37.485, lng: 127.015 }
-      ],
-      '역삼동': [
-        { lat: 37.5085, lng: 127.0285 }, { lat: 37.5075, lng: 127.0350 },
-        { lat: 37.5065, lng: 127.0430 }, { lat: 37.5045, lng: 127.0485 },
-        { lat: 37.4985, lng: 127.0510 }, { lat: 37.4935, lng: 127.0495 },
-        { lat: 37.4910, lng: 127.0465 }, { lat: 37.4895, lng: 127.0380 },
-        { lat: 37.4915, lng: 127.0315 }, { lat: 37.4950, lng: 127.0255 },
-        { lat: 37.5025, lng: 127.0245 }, { lat: 37.5065, lng: 127.0265 }
-      ],
-      '삼성동': [
-        { lat: 37.5195, lng: 127.0435 }, { lat: 37.5215, lng: 127.0505 },
-        { lat: 37.5175, lng: 127.0615 }, { lat: 37.5115, lng: 127.0655 },
-        { lat: 37.5065, lng: 127.0625 }, { lat: 37.5035, lng: 127.0565 },
-        { lat: 37.5060, lng: 127.0485 }, { lat: 37.5125, lng: 127.0455 },
-        { lat: 37.5155, lng: 127.0425 }
-      ],
-      '청담동': [
-        { lat: 37.5305, lng: 127.0385 }, { lat: 37.5275, lng: 127.0485 },
-        { lat: 37.5245, lng: 127.0565 }, { lat: 37.5205, lng: 127.0535 },
-        { lat: 37.5225, lng: 127.0425 }, { lat: 37.5265, lng: 127.0365 }
-      ],
-      '신사동': [
-        { lat: 37.5315, lng: 127.0125 }, { lat: 37.5285, lng: 127.0255 },
-        { lat: 37.5225, lng: 127.0365 }, { lat: 37.5165, lng: 127.0325 },
-        { lat: 37.5175, lng: 127.0215 }, { lat: 37.5215, lng: 127.0105 }
-      ]
-    },
-    '마포구': {
-      'all': [
-        { lat: 37.570, lng: 126.900 }, { lat: 37.565, lng: 126.940 },
-        { lat: 37.545, lng: 126.945 }, { lat: 37.535, lng: 126.910 },
-        { lat: 37.550, lng: 126.880 }
-      ],
-      '서교동': [
-        { lat: 37.5615, lng: 126.9125 }, { lat: 37.5585, lng: 126.9245 },
-        { lat: 37.5535, lng: 126.9325 }, { lat: 37.5465, lng: 126.9285 },
-        { lat: 37.5445, lng: 126.9185 }, { lat: 37.5495, lng: 126.9085 }
-      ]
-    }
-  };
-
   const [isRegionOpen, setIsRegionOpen] = useState(false);
-  const [selectedDist, setSelectedDist] = useState(null);
+  const [regionCatalog, setRegionCatalog] = useState(() => ({ roots: [], byAddress: new globalThis.Map(), isLoaded: false }));
+  const [selectedRegionPath, setSelectedRegionPath] = useState([]);
+  const [currentRegion, setCurrentRegion] = useState(null);
   const [highlightRegion, setHighlightRegion] = useState(null);
 
   const glideTo = useCallback(
-    (coords, nextLevel) => {
+    (coords, nextLevel, options = {}) => {
       const currentLevel = viewLevelRef.current;
       const targetLevel = nextLevel ?? currentLevel;
 
@@ -162,14 +166,41 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
         window.clearTimeout(glideTimeoutRef.current);
       }
 
+      if (hudCollapseSuppressTimeoutRef.current) {
+        window.clearTimeout(hudCollapseSuppressTimeoutRef.current);
+      }
+
+      suppressHudCollapseRef.current = Boolean(options.keepHudOpen);
+      hudCollapseSuppressTimeoutRef.current = window.setTimeout(() => {
+        suppressHudCollapseRef.current = false;
+      }, 900);
+
       if (mapInstance && window.kakao?.maps) {
-        // 레벨 변경이 있을 경우 먼저 레벨 세팅 후 panTo
+        const targetLatLng = new window.kakao.maps.LatLng(coords.latitude, coords.longitude);
+
         if (targetLevel !== currentLevel) {
-          mapInstance.setLevel(targetLevel, { animate: { duration: 350 } });
+          mapInstance.panTo(targetLatLng);
+
+          glideTimeoutRef.current = window.setTimeout(() => {
+            mapInstance.setLevel(targetLevel, {
+              anchor: targetLatLng,
+              animate: { duration: 350 },
+            });
+            mapInstance.panTo(targetLatLng);
+            setViewState(prev => ({
+              ...prev,
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              level: targetLevel,
+            }));
+            viewLevelRef.current = targetLevel;
+          }, 140);
+
+          return;
         }
-        // panTo는 카카오맵 자체 부드러운 이동 사용
+
         glideTimeoutRef.current = window.setTimeout(() => {
-          mapInstance.panTo(new window.kakao.maps.LatLng(coords.latitude, coords.longitude));
+          mapInstance.panTo(targetLatLng);
           setViewState(prev => ({
             ...prev,
             latitude: coords.latitude,
@@ -196,8 +227,120 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
       if (glideTimeoutRef.current) {
         window.clearTimeout(glideTimeoutRef.current);
       }
+      if (hudCollapseSuppressTimeoutRef.current) {
+        window.clearTimeout(hudCollapseSuppressTimeoutRef.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    import('../data/koreaLegalRegions.json').then((module) => {
+      if (!isMounted) return;
+      setRegionCatalog(createRegionCatalog(module.default));
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!regionCatalog.isLoaded || !currentRegion?.addressName || currentRegion.path?.length > 0) return;
+
+    const administrativePath = getRegionPath(currentRegion.addressName, regionCatalog.byAddress);
+    const legalPath = getRegionPath(currentRegion.legalAddressName, regionCatalog.byAddress);
+    const path = legalPath.length > administrativePath.length ? legalPath : administrativePath;
+
+    if (path.length > 0) {
+      setCurrentRegion((prev) => (prev ? { ...prev, path } : prev));
+    }
+  }, [currentRegion, regionCatalog]);
+
+  const resolveCurrentRegion = useCallback((coords, syncSelection = false) => {
+    if (!window.kakao?.maps?.services) return;
+
+    const geocoder = new window.kakao.maps.services.Geocoder();
+
+    geocoder.coord2RegionCode(coords.longitude, coords.latitude, (result, status) => {
+      if (status !== window.kakao.maps.services.Status.OK || !result?.length) return;
+
+      const administrativeRegion = result.find((region) => region.region_type === 'H');
+      const legalRegion = result.find((region) => region.region_type === 'B') || result[0];
+      const region = administrativeRegion || legalRegion;
+      const administrativePath = getRegionPath(region.address_name, regionCatalog.byAddress);
+      const legalPath = getRegionPath(legalRegion.address_name, regionCatalog.byAddress);
+      const path = legalPath.length > administrativePath.length ? legalPath : administrativePath;
+
+      setCurrentRegion({
+        addressName: region.address_name,
+        legalAddressName: legalRegion.address_name,
+        code: region.code,
+        path,
+      });
+
+      if (syncSelection && path.length > 0) {
+        setSelectedRegionPath(path);
+        setHighlightRegion({
+          center: { lat: coords.latitude, lng: coords.longitude },
+          path: [],
+          name: region.address_name,
+        });
+      }
+    });
+  }, [regionCatalog.byAddress]);
+
+  const maybeRefreshCurrentRegion = useCallback(
+    (coords, syncSelection = false) => {
+      const last = lastRegionLookupRef.current;
+      const movedEnough = !last
+        || Math.abs(last.latitude - coords.latitude) > 0.00025
+        || Math.abs(last.longitude - coords.longitude) > 0.00025;
+
+      if (!movedEnough && !syncSelection) return;
+
+      lastRegionLookupRef.current = coords;
+      resolveCurrentRegion(coords, syncSelection);
+    },
+    [resolveCurrentRegion],
+  );
+
+  const focusRegion = useCallback(
+    (region, depth) => {
+      if (!region || !window.kakao?.maps?.services) return;
+
+      const geocoder = new window.kakao.maps.services.Geocoder();
+
+      geocoder.addressSearch(region.address, (result, status) => {
+        if (status !== window.kakao.maps.services.Status.OK || !result?.length) {
+          toast({
+            title: '선택한 지역의 지도 좌표를 찾지 못했습니다.',
+            status: 'warning',
+            duration: 2200,
+          });
+          return;
+        }
+
+        const coords = {
+          latitude: parseFloat(result[0].y),
+          longitude: parseFloat(result[0].x),
+        };
+        const nextLevel = depth <= 1 ? 10 : depth === 2 ? 7 : depth === 3 ? 5 : 4;
+
+        glideTo(coords, nextLevel);
+        setHighlightRegion({
+          center: { lat: coords.latitude, lng: coords.longitude },
+          path: [],
+          name: region.address,
+        });
+        setTargetCapsule(null);
+        setIsHudSheetCollapsed(true);
+        setSearchResults([]);
+      });
+    },
+    [glideTo, toast],
+  );
 
   const handleNewCapsule = (newCapsule) => {
     setAllCapsules(prev => [newCapsule, ...prev]);
@@ -310,6 +453,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
     
     glideTo(coords, 3);
     setTargetCapsule(null);
+    setIsHudSheetCollapsed(true);
     if (onMapClick) onMapClick(coords);
     setSearchResults([]);
     setSearchQuery(place.place_name);
@@ -317,7 +461,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
   };
 
   useEffect(() => {
-    if (!('geolocation' in navigator)) {
+    if (loading || error || !('geolocation' in navigator)) {
       return undefined;
     }
 
@@ -331,6 +475,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
         };
         setUserLocation(coords);
         glideTo(coords, 4);
+        maybeRefreshCurrentRegion(coords, true);
         setIsLocating(false);
       },
       (geoError) => {
@@ -348,6 +493,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
         };
 
         setUserLocation(coords);
+        maybeRefreshCurrentRegion(coords);
       },
       () => {},
       { enableHighAccuracy: true, maximumAge: 0 },
@@ -358,7 +504,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [loading, error, glideTo]);
+  }, [loading, error, glideTo, maybeRefreshCurrentRegion]);
 
   const toggleCategory = (cat) => {
     setSelectedCategories(prev => {
@@ -374,30 +520,30 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
     });
   };
 
-  const handleSelectDong = (dong) => {
-    if (!window.kakao) return;
-    const geocoder = new window.kakao.maps.services.Geocoder();
-    const query = dong === 'all' ? selectedDist : `${selectedDist} ${dong}`;
-    
-    geocoder.addressSearch(query, (result, status) => {
-      if (status === window.kakao.maps.services.Status.OK) {
-        const coords = { latitude: parseFloat(result[0].y), longitude: parseFloat(result[0].x) };
-        glideTo(coords, dong === 'all' ? 7 : 5);
-        setHighlightRegion({
-          center: { lat: coords.latitude, lng: coords.longitude },
-          path: districts[selectedDist][dong] || [],
-          name: dong === 'all' ? `${selectedDist} 전체` : dong,
-        });
-        setIsRegionOpen(false);
-        setTargetCapsule(null);
-      }
-    });
+  const handleSelectRegion = (level, address) => {
+    const nextPath = address ? [...selectedRegionPath.slice(0, level), address] : selectedRegionPath.slice(0, level);
+    setSelectedRegionPath(nextPath);
+
+    if (!address) {
+      setHighlightRegion(null);
+      setIsHudSheetCollapsed(true);
+      return;
+    }
+
+    const region = regionCatalog.byAddress.get(address);
+    focusRegion(region, level + 1);
+
+    if (!region?.children?.length) {
+      setIsRegionOpen(false);
+    }
   };
 
   const handleGoToMyLocation = () => {
     if (userLocation) {
       glideTo(userLocation, 4);
+      maybeRefreshCurrentRegion(userLocation, true);
       setTargetCapsule(null);
+      setIsHudSheetCollapsed(true);
       setIsRegionOpen(false);
       setSearchResults([]);
       setIsActionMenuOpen(false);
@@ -412,6 +558,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
             };
             setUserLocation(coords);
             glideTo(coords, 4);
+            maybeRefreshCurrentRegion(coords, true);
             setIsLocating(false);
           },
           (geoError) => {
@@ -437,7 +584,12 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
     return capsuleCats.some(cat => selectedCategories.includes(cat));
   });
 
-  const activeRegionLabel = highlightRegion?.name || (selectedDist ? `${selectedDist} 탐색 중` : '서울 기본 탐색');
+  const activeRegionLabel = highlightRegion?.name || currentRegion?.addressName || (userLocation ? '내 위치 탐색 중' : '국내 기본 탐색');
+  const activeRegionSubline = currentRegion?.addressName
+    ? `${currentRegion.addressName} 기준`
+    : userLocation
+      ? '실시간 위치 기반 탐색'
+      : '국내 행정구역 선택 탐색';
   if (error) {
     return (
       <Flex w="100%" h="100%" align="center" justify="center" px={6} py={10}>
@@ -505,6 +657,8 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
           isPanto={false}
           style={{ width: '100%', height: '100%' }}
           level={viewState.level}
+          draggable
+          scrollwheel
           onCreate={(map) => setMapInstance(map)}
           onIdle={(map) =>
             setViewState(prev => ({
@@ -514,8 +668,15 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
               level: map.getLevel(),
             }))
           }
+          onDragStart={() => setIsHudSheetCollapsed(true)}
+          onZoomChanged={() => {
+            if (!suppressHudCollapseRef.current) {
+              setIsHudSheetCollapsed(true);
+            }
+          }}
           onClick={(_t, mouseEvent) => {
             setTargetCapsule(null);
+            setIsHudSheetCollapsed(true);
             setSearchResults([]);
             setIsRegionOpen(false);
             if (onMapClick) {
@@ -562,10 +723,18 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
             >
               <div
                 className={`holo-marker-wrapper ${capsule.is_promoted ? 'holo-marker-promo' : ''}`}
-                onClick={() => {
+                onClick={(event) => {
+                  event.stopPropagation();
                   setTargetCapsule(capsule);
-                  glideTo({ latitude: capsule.lat, longitude: capsule.lng }, Math.min(viewLevelRef.current, 3));
+                  setIsHudSheetCollapsed(false);
+                  glideTo(
+                    { latitude: capsule.lat, longitude: capsule.lng },
+                    Math.min(viewLevelRef.current, 3),
+                    { keepHudOpen: true },
+                  );
                 }}
+                onMouseDown={(event) => event.stopPropagation()}
+                onTouchStart={(event) => event.stopPropagation()}
                 style={{ position: 'relative', display: 'inline-block' }}
               >
                 <div className="holo-marker-ring" />
@@ -758,7 +927,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                     {activeRegionLabel}
                   </Text>
                   <Text className="atlas-subline" noOfLines={1}>
-                    {userLocation ? '실시간 위치 기반 탐색' : '서울 기준 탐색 모드'}
+                    {activeRegionSubline}
                   </Text>
                 </Box>
               </HStack>
@@ -815,6 +984,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                     fontWeight="500"
                     onClick={() => {
                       setTargetCapsule(null);
+                      setIsHudSheetCollapsed(true);
                       setSearchResults([]);
                       if (onMapClick) onMapClick(null);
                     }}
@@ -901,7 +1071,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                   onClick={() => setIsRegionOpen(!isRegionOpen)}
                   flexShrink={0}
                 >
-                  {highlightRegion?.name || '동네 선택'}
+                  {highlightRegion?.name || currentRegion?.addressName || '동네 선택'}
                 </Button>
 
                 {categories.map((category) => {
@@ -938,65 +1108,89 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                 boxShadow="var(--atlas-shadow-float)"
                 pointerEvents="auto"
               >
-                <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="700" mb={3}>
-                  지역 검색
-                </Text>
-                <HStack spacing={2} overflowX="auto" pb={1} mb={4}>
-                  {Object.keys(districts).map((dist) => (
+                <Flex align="center" justify="space-between" gap={3} mb={4}>
+                  <Box>
+                    <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="800">
+                      국내 동네 선택
+                    </Text>
+                  </Box>
+                  {currentRegion?.path?.length > 0 && (
                     <Button
-                      key={dist}
+                      h="34px"
+                      px={3}
+                      borderRadius="10px"
+                      bg="var(--atlas-mint-soft)"
+                      color="var(--atlas-mint)"
+                      fontSize="sm"
+                      fontWeight="800"
+                      _hover={{ bg: 'var(--atlas-mint-soft)' }}
+                      onClick={() => {
+                        setSelectedRegionPath(currentRegion.path);
+                        focusRegion(regionCatalog.byAddress.get(currentRegion.path[currentRegion.path.length - 1]), currentRegion.path.length);
+                      }}
+                    >
+                      현 위치 반영
+                    </Button>
+                  )}
+                </Flex>
+
+                <Flex gap={2.5} wrap={{ base: 'wrap', md: 'nowrap' }}>
+                  {[0, 1, 2, 3, 4].map((level) => {
+                    const options = getRegionChildren(regionCatalog, selectedRegionPath, level);
+                    const isDisabled = level > 0 && !selectedRegionPath[level - 1];
+                    const selectedValue = selectedRegionPath[level] || '';
+                    const label = regionCatalog.isLoaded ? getRegionColumnLabel(options, level) : '불러오는 중';
+
+                    return (
+                      <Select
+                        key={level}
+                        className="atlas-region-select"
+                        minW={{ base: 'calc(50% - 5px)', md: '0' }}
+                        flex="1"
+                        h="42px"
+                        borderRadius="12px"
+                        bg="white"
+                        color={selectedValue ? 'gray.800' : 'gray.500'}
+                        borderColor="gray.200"
+                        fontSize="sm"
+                        fontWeight="700"
+                        value={selectedValue}
+                        isDisabled={isDisabled || options.length === 0}
+                        onChange={(event) => handleSelectRegion(level, event.target.value)}
+                      >
+                        <option value="">{label}</option>
+                        {options.map((region) => (
+                          <option key={region.address} value={region.address}>
+                            {region.name}
+                          </option>
+                        ))}
+                      </Select>
+                    );
+                  })}
+                </Flex>
+
+                {selectedRegionPath.length > 0 && (
+                  <Flex align="center" justify="space-between" gap={3} mt={4}>
+                    <Text color="gray.500" fontSize="sm" noOfLines={1}>
+                      {selectedRegionPath[selectedRegionPath.length - 1]}
+                    </Text>
+                    <Button
                       h="36px"
                       px={4}
                       borderRadius="12px"
-                      bg={selectedDist === dist ? 'ink.900' : 'gray.50'}
-                      color={selectedDist === dist ? 'white' : 'gray.700'}
-                      border="1px solid"
-                      borderColor={selectedDist === dist ? 'ink.900' : 'gray.200'}
-                      _hover={{ bg: selectedDist === dist ? 'ink.900' : 'gray.100' }}
-                      onClick={() => setSelectedDist(dist)}
-                      flexShrink={0}
-                    >
-                      {dist}
-                    </Button>
-                  ))}
-                </HStack>
-
-                {selectedDist ? (
-                  <Flex wrap="wrap" gap={2}>
-                    <Button
-                      h="38px"
-                      px={4}
-                      borderRadius="12px"
-                      bg="primary.500"
+                      bg="var(--atlas-text)"
                       color="white"
-                      _hover={{ bg: 'primary.600' }}
-                      onClick={() => handleSelectDong('all')}
+                      fontSize="sm"
+                      _hover={{ bg: 'var(--atlas-text-subtle)' }}
+                      onClick={() => {
+                        setSelectedRegionPath([]);
+                        setHighlightRegion(null);
+                        setIsHudSheetCollapsed(true);
+                      }}
                     >
-                      {selectedDist} 전체 보기
+                      초기화
                     </Button>
-                    {Object.keys(districts[selectedDist])
-                      .filter((dong) => dong !== 'all')
-                      .map((dong) => (
-                        <Button
-                          key={dong}
-                          h="38px"
-                          px={4}
-                          borderRadius="12px"
-                          bg="white"
-                          color="gray.700"
-                          border="1px solid"
-                          borderColor="gray.200"
-                          _hover={{ bg: 'gray.50' }}
-                          onClick={() => handleSelectDong(dong)}
-                        >
-                          {dong}
-                        </Button>
-                      ))}
                   </Flex>
-                ) : (
-                  <Text color="gray.500" fontSize="sm">
-                    먼저 탐험할 구를 선택하세요.
-                  </Text>
                 )}
               </Box>
             )}
@@ -1165,6 +1359,8 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
         onShopOpen={onShopOpen}
         onUnlockOpen={() => setUnlockingCapsule(targetCapsule)}
         onReportCapsule={handleReportCapsule}
+        isSheetCollapsed={isHudSheetCollapsed}
+        onSheetToggle={() => setIsHudSheetCollapsed((prev) => !prev)}
       />
     </Box>
   );
