@@ -1,0 +1,8 @@
+{
+  "appId": "com.mylocalplace.app",
+  "appName": "MyLocalPlace",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

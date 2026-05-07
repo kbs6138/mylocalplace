@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MyLocalPlace</string>
+    <string name="title_activity_main">MyLocalPlace</string>
+    <string name="package_name">com.mylocalplace.app</string>
+    <string name="custom_url_scheme">com.mylocalplace.app</string>
+</resources>

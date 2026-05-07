@@ -9,6 +9,55 @@ npm install
 npm run dev
 ```
 
+## Android 앱 테스트
+
+Capacitor로 Vite 빌드를 Android 앱에 패키징합니다.
+
+```bash
+npm run cap:sync
+npm run cap:open:android
+```
+
+Android Studio에서 기기 또는 에뮬레이터를 선택한 뒤 Run을 누릅니다. CLI로 바로 실행할 때는 다음 명령을 사용합니다.
+
+```bash
+npm run cap:run:android
+```
+
+Kakao Developers의 Web 플랫폼 도메인에는 Capacitor Android WebView origin인 `https://localhost`도 등록합니다.
+
+## Android 개발모드
+
+USB로 연결된 기기 또는 에뮬레이터에서 Vite 개발 서버를 보게 실행합니다. 저장할 때마다 WebView가 갱신됩니다.
+
+터미널 1:
+
+```bash
+npm run dev:android
+```
+
+터미널 2:
+
+```bash
+npm run cap:dev:android:usb
+```
+
+Wi-Fi로 직접 접근시키려면 PC와 기기를 같은 네트워크에 두고 개발 서버를 외부 접속 가능하게 실행합니다.
+
+터미널 1:
+
+```bash
+npm run dev:host -- --port 5174 --strictPort
+```
+
+터미널 2:
+
+```bash
+npx cap run android -l --host 192.168.0.103 --port 5174
+```
+
+IP가 바뀌면 `192.168.0.103` 부분을 현재 Mac의 Wi-Fi IP로 바꿉니다. Kakao Developers의 JavaScript SDK 도메인에는 `http://192.168.0.103:5174`도 등록합니다.
+
 ## 테스트 배포 체크리스트
 
 1. `.env.example`을 기준으로 배포 플랫폼에 환경변수를 등록합니다.
