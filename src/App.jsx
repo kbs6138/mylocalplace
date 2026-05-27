@@ -4,7 +4,7 @@ import ExplorerMap from './components/ExplorerMap';
 import ExplorerDashboard from './components/ExplorerDashboard';
 import AuthOverlay from './components/AuthOverlay';
 import ShopOverlay from './components/ShopOverlay';
-import { supabase } from './supabaseClient';
+import { isSupabaseConfigured, supabase } from './supabaseClient';
 
 function AppBootSplash() {
   return (
@@ -43,6 +43,42 @@ function AppBootSplash() {
   );
 }
 
+function AppConfigError() {
+  return (
+    <Flex
+      w="100vw"
+      h="100vh"
+      align="center"
+      justify="center"
+      px={6}
+      bg="transparent"
+    >
+      <VStack
+        className="atlas-card"
+        spacing={4}
+        w="full"
+        maxW="420px"
+        p={{ base: 8, md: 10 }}
+        bg="var(--atlas-card)"
+        textAlign="center"
+      >
+        <Text
+          fontFamily="heading"
+          fontSize={{ base: '2xl', md: '3xl' }}
+          fontWeight="700"
+          color="var(--atlas-text)"
+          letterSpacing="0"
+        >
+          설정이 필요합니다
+        </Text>
+        <Text color="var(--atlas-muted-text)" fontSize="sm" lineHeight="1.7">
+          Vercel 환경변수에 VITE_SUPABASE_URL과 VITE_SUPABASE_ANON_KEY를 등록한 뒤 다시 배포하세요.
+        </Text>
+      </VStack>
+    </Flex>
+  );
+}
+
 function App() {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [session, setSession] = useState(null);
@@ -52,6 +88,10 @@ function App() {
   const { isOpen: isShopOpen, onClose: onShopClose } = useDisclosure();
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      return undefined;
+    }
+
     let isMounted = true;
 
     const fetchProfile = async (userId) => {
@@ -115,6 +155,10 @@ function App() {
       subscription.unsubscribe();
     };
   }, []);
+
+  if (!isSupabaseConfigured) {
+    return <AppConfigError />;
+  }
 
   if (!isAuthReady) {
     return <AppBootSplash />;
