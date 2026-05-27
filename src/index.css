@@ -375,6 +375,12 @@ textarea:focus-visible {
   opacity: 0;
   transition: opacity 0.3s;
   border-radius: inherit;
+  pointer-events: none;
+}
+
+.magnetic-btn > button {
+  position: relative;
+  z-index: 1;
 }
 
 .magnetic-btn:hover::after { opacity: 1; }
@@ -576,8 +582,7 @@ textarea:focus-visible {
   --atlas-radius-xl: 18px;
 }
 
-.atlas-top-shell,
-.atlas-search-shell,
+.atlas-search-panel,
 .atlas-region-panel,
 .atlas-action-shell {
   background: var(--atlas-surface);
@@ -587,20 +592,17 @@ textarea:focus-visible {
   -webkit-backdrop-filter: blur(22px);
 }
 
-.atlas-top-shell {
+.atlas-search-panel {
   border-radius: var(--atlas-radius-lg);
-  min-height: 68px;
+  overflow: hidden;
+  padding: 7px;
 }
 
-.atlas-brand-mark {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--atlas-radius-md);
-  background:
-    linear-gradient(135deg, rgba(255,255,255,0.16), transparent),
-    var(--atlas-midnight);
-  color: white;
-  box-shadow: 0 12px 24px rgba(21, 26, 36, 0.22);
+.atlas-discovery-bar {
+  align-items: center;
+}
+
+.atlas-discovery-actions {
   flex-shrink: 0;
 }
 
@@ -612,42 +614,10 @@ textarea:focus-visible {
   line-height: 1.2;
 }
 
-.atlas-headline {
-  color: var(--atlas-text);
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.3;
-}
-
-.atlas-subline {
-  color: var(--atlas-muted-text);
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1.3;
-}
-
-.atlas-status-badge,
-.atlas-count-badge {
-  border: 1px solid transparent !important;
-  border-radius: var(--atlas-radius-sm) !important;
-  font-size: 12px !important;
-  font-weight: 800 !important;
-  padding: 6px 10px !important;
-  text-transform: none !important;
-}
-
-.atlas-status-badge {
-  background: var(--atlas-green-light) !important;
-  color: var(--atlas-green) !important;
-}
-
-.atlas-count-badge {
-  background: var(--atlas-bg) !important;
-  color: var(--atlas-text-subtle) !important;
-}
-
 .atlas-search-shell {
-  border-radius: var(--atlas-radius-lg) !important;
+  border-radius: 13px !important;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(21, 26, 36, 0.08);
   overflow: hidden;
   position: relative;
 }
@@ -684,8 +654,27 @@ textarea:focus-visible {
 }
 
 .atlas-chip-row {
-  padding: 2px;
-  mask-image: linear-gradient(90deg, transparent 0, black 18px, black calc(100% - 18px), transparent 100%);
+  padding: 8px 0 0;
+  margin: 0;
+  mask-image: linear-gradient(90deg, black 0, black calc(100% - 18px), transparent 100%);
+}
+
+.atlas-category-tray {
+  overflow: hidden;
+}
+
+.atlas-control-pill {
+  border: 1px solid var(--atlas-border) !important;
+  border-radius: 13px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  white-space: nowrap;
+  min-width: 74px;
+  max-width: 176px;
+}
+
+.atlas-control-pill .chakra-button__icon {
+  margin-inline-end: 6px;
 }
 
 .atlas-filter-chip {
@@ -703,8 +692,37 @@ textarea:focus-visible {
   transform: translateY(-1px);
 }
 
+.atlas-search-panel .atlas-filter-chip {
+  box-shadow: none !important;
+}
+
 .atlas-region-panel {
   box-shadow: var(--atlas-shadow) !important;
+}
+
+.atlas-map-empty-state {
+  width: 100%;
+  max-width: 704px;
+  padding: 10px 16px;
+  border: 1px solid var(--atlas-border);
+  border-radius: var(--atlas-radius-lg);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--atlas-shadow-soft);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.atlas-map-loading-state {
+  width: fit-content;
+  max-width: 100%;
+  align-self: center;
+  padding: 10px 16px;
+  border: 1px solid var(--atlas-border);
+  border-radius: var(--atlas-radius-lg);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--atlas-shadow-soft);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .atlas-action-shell {
@@ -826,36 +844,6 @@ textarea:focus-visible {
 }
 
 @media (max-width: 767px) {
-  .atlas-top-shell {
-    align-items: flex-start;
-    min-height: 58px;
-  }
-
-  .atlas-status-badge {
-    display: none !important;
-  }
-
-  .atlas-brand-mark {
-    width: 36px;
-    height: 36px;
-    border-radius: 11px;
-  }
-
-  .atlas-headline {
-    font-size: 14px;
-    line-height: 1.25;
-  }
-
-  .atlas-subline {
-    font-size: 11px;
-    line-height: 1.25;
-  }
-
-  .atlas-count-badge {
-    padding: 5px 8px !important;
-    font-size: 11px !important;
-  }
-
   .atlas-action-dock {
     bottom: calc(env(safe-area-inset-bottom) + 86px) !important;
   }
@@ -881,14 +869,11 @@ textarea:focus-visible {
   inset: 8% 8% auto auto;
   width: min(42vw, 520px);
   height: min(46vh, 420px);
-  border: 1px solid rgba(21, 26, 36, 0.08);
-  border-radius: 18px;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,0.88), rgba(255,255,255,0.58)),
-    repeating-linear-gradient(0deg, rgba(37,99,235,0.10) 0 1px, transparent 1px 34px),
-    repeating-linear-gradient(90deg, rgba(31,157,104,0.10) 0 1px, transparent 1px 34px);
-  box-shadow: 0 28px 70px rgba(21, 26, 36, 0.12);
-  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
   pointer-events: none;
   transform: perspective(1200px) rotateX(1deg) rotateY(-5deg);
 }
@@ -1272,11 +1257,59 @@ textarea:focus-visible {
   -webkit-backdrop-filter: blur(18px);
 }
 
+.atlas-map-controls {
+  --atlas-control-max-width: 760px;
+}
+
+.atlas-floating-action-menu,
+.atlas-location-action {
+  filter: drop-shadow(0 8px 18px rgba(21, 26, 36, 0.12));
+}
+
 .atlas-mobile-safe-bottom {
   padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
 }
 
 @media (max-width: 767px) {
+  .atlas-filter-chip {
+    height: 34px !important;
+    padding-inline: 12px !important;
+    font-size: 12px !important;
+    border-radius: 10px !important;
+  }
+
+  .atlas-search-panel {
+    border-radius: 13px !important;
+    padding: 7px;
+  }
+
+  .atlas-control-pill {
+    min-width: 58px;
+    max-width: none;
+    height: 42px !important;
+    padding-inline: 10px !important;
+    font-size: 12px !important;
+  }
+
+  .atlas-control-pill .chakra-button__icon {
+    margin-inline-end: 4px;
+  }
+
+  .atlas-chip-row {
+    padding-top: 7px;
+  }
+
+  .atlas-map-empty-state {
+    padding: 9px 14px;
+    border-radius: 13px;
+  }
+
+  .atlas-action-menu-button {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 14px !important;
+  }
+
   .atlas-auth-visual {
     inset: 6% -24% auto auto;
     width: 72vw;

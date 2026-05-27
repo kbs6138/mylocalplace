@@ -4,12 +4,10 @@ import {
   FiAlertTriangle,
   FiCheck,
   FiChevronDown,
-  FiChevronRight,
   FiChevronUp,
   FiCompass,
   FiEdit3,
   FiLock,
-  FiMapPin,
   FiNavigation,
   FiX,
 } from 'react-icons/fi';
@@ -38,7 +36,6 @@ export default function ExplorerHUD({
   userProfile,
   visibleCapsuleCount,
   activeRegionLabel,
-  onDashboardOpen,
   onUnlockOpen,
   onReportCapsule,
   onUpdateCapsule,
@@ -60,7 +57,6 @@ export default function ExplorerHUD({
     return distance < 1 ? `${(distance * 1000).toFixed(0)}m` : `${distance.toFixed(1)}km`;
   }, [userLocation, targetCapsule]);
 
-  const explorerName = userProfile?.nickname || 'Explorer';
   const targetCategory = getPrimaryCapsuleCategory(targetCapsule?.category);
   const unlockRadius = targetCapsule?.unlock_radius_meters || 50;
   const accessLimit = targetCapsule?.access_limit || 0;
@@ -94,78 +90,6 @@ export default function ExplorerHUD({
 
   return (
     <Box position="absolute" inset={0} pointerEvents="none" zIndex={5}>
-      <Box
-        position="absolute"
-        top="24px"
-        right="16px"
-        pointerEvents="auto"
-        display={{ base: 'none', md: 'block' }}
-      >
-        <VStack
-          spacing={3}
-          align="stretch"
-          w="320px"
-        >
-          <Box
-            className="atlas-hud-card atlas-entry-card"
-            p={5}
-            onClick={onDashboardOpen}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onDashboardOpen();
-              }
-            }}
-            role="button"
-            tabIndex={0}
-            cursor="pointer"
-            transition="transform 0.18s ease, box-shadow 0.18s ease"
-            _hover={{ transform: 'translateY(-2px)' }}
-            _active={{ transform: 'scale(0.98)' }}
-            position="relative"
-            overflow="hidden"
-          >
-            <HStack justify="space-between" align="start" mb={4}>
-              <HStack spacing={3} minW={0} align="center">
-                <Flex className="atlas-profile-mark" align="center" justify="center">
-                  <Icon as={FiMapPin} w={5} h={5} />
-                </Flex>
-                <Box minW={0}>
-                  <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="800">
-                    EXPLORER PASS
-                  </Text>
-                  <Text color="var(--atlas-text)" fontSize="xl" fontWeight="800" mt={1} noOfLines={1}>
-                    {explorerName}
-                  </Text>
-                  <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="650" mt={0.5} noOfLines={1}>
-                    내 탐험 상태 보기
-                  </Text>
-                </Box>
-              </HStack>
-              <Flex className="atlas-entry-arrow" align="center" justify="center" aria-hidden="true" flexShrink={0}>
-                <FiChevronRight size={16} />
-              </Flex>
-            </HStack>
-
-            <Box className="atlas-stat-tile" p={4}>
-              <HStack justify="space-between" align="center">
-                <Box>
-                  <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="700">
-                    표시 중인 캡슐
-                  </Text>
-                  <Text color="var(--atlas-text)" fontSize="xl" fontWeight="800" mt={1}>
-                    {visibleCapsuleCount}개
-                  </Text>
-                </Box>
-                <Flex className="atlas-entry-mini-icon atlas-entry-mini-icon-blue" align="center" justify="center">
-                  <Icon as={FiCompass} w={3.5} h={3.5} />
-                </Flex>
-              </HStack>
-            </Box>
-          </Box>
-        </VStack>
-      </Box>
-
       <Box position="absolute" bottom="0" left="0" w="100%" pointerEvents="none" zIndex={30}>
         <MotionBox
           initial={{ y: 200, opacity: 0 }}

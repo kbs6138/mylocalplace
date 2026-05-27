@@ -58,7 +58,7 @@ function formatMeters(value) {
   return distance < 1000 ? `${Math.round(distance)}m` : `${(distance / 1000).toFixed(1)}km`;
 }
 
-export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
+export default function ExplorerDashboard({ isOpen, onClose, onLogout, userProfile }) {
   const [myCapsules, setMyCapsules] = useState([]);
   const [discoveries, setDiscoveries] = useState([]);
 
@@ -99,6 +99,15 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
   }, [isOpen, userProfile?.id]);
 
   const handleLogout = async () => {
+    if (onLogout) {
+      await onLogout();
+      return;
+    }
+
+    if (!window.confirm('로그아웃 하시겠습니까?')) {
+      return;
+    }
+
     await supabase.auth.signOut();
     onClose();
   };

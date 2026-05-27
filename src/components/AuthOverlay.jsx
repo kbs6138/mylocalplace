@@ -146,10 +146,10 @@ function useMagneticEffect(ref) {
   }, [ref]);
 }
 
-export default function AuthOverlay({ isReady, onAuthSuccess }) {
+export default function AuthOverlay({ isReady, onAuthSuccess, onDemoLogin }) {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('admin');
+  const [password, setPassword] = useState('admin');
   const [loading, setLoading] = useState(false);
   const toast = useToast();
   const canvasRef = useRef(null);
@@ -170,6 +170,12 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
     if (!finalEmail.includes('@')) finalEmail = `${finalEmail}@test.com`;
 
     try {
+      if (isLogin && email.trim() === 'admin' && password === 'admin' && onDemoLogin) {
+        await onDemoLogin();
+        toast({ title: '포트폴리오 데모 계정으로 로그인되었습니다.', status: 'success' });
+        return;
+      }
+
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email: finalEmail, password });
         if (error) throw error;

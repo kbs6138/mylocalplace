@@ -156,6 +156,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
   const [isCapsuleLoading, setIsCapsuleLoading] = useState(true);
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState(['전체']);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isPlantingOpen, setIsPlantingOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -179,6 +180,11 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
   }, [viewState.level]);
 
   const categories = CAPSULE_CATEGORY_FILTERS;
+  const categorySummary = selectedCategories.includes('전체')
+    ? '카테고리'
+    : selectedCategories.length === 1
+      ? selectedCategories[0]
+      : `${selectedCategories[0]} 외 ${selectedCategories.length - 1}`;
 
   const [isRegionOpen, setIsRegionOpen] = useState(false);
   const [regionCatalog, setRegionCatalog] = useState(() => ({ roots: [], byAddress: new globalThis.Map(), isLoaded: false }));
@@ -707,42 +713,80 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
     });
 
   const activeRegionLabel = highlightRegion?.name || currentRegion?.addressName || (userLocation ? '내 위치 탐색 중' : '국내 기본 탐색');
-  const activeRegionSubline = currentRegion?.addressName
-    ? `${currentRegion.addressName} 기준`
-    : userLocation
-      ? '실시간 위치 기반 탐색'
-      : '국내 행정구역 선택 탐색';
   const shouldShowMapControls = isHudSheetCollapsed || !targetCapsule;
   if (error) {
     return (
-      <Flex w="100%" h="100%" align="center" justify="center" px={6} py={10}>
-        <VStack
-          spacing={4}
-          maxW="540px"
-          p={{ base: 7, md: 8 }}
-          borderRadius="16px"
-          bg="var(--surface-strong)"
-          border="1px solid var(--surface-stroke)"
-          boxShadow="float"
-          textAlign="center"
-        >
-          <Badge px={3} py={1.5} borderRadius="8px" bg="red.50" color="red.500" border="1px solid" borderColor="red.100">
-            MAP CONNECTION ERROR
-          </Badge>
-          <Text color="ink.900" fontSize={{ base: '2xl', md: '3xl' }} fontWeight="700" letterSpacing="0">
-            카카오맵을 불러오지 못했습니다.
-          </Text>
-          <Text color="gray.600" fontSize="sm" lineHeight="1.8">
-            지도 설정을 확인하지 못했습니다. Kakao JavaScript 키와 등록된 Web 플랫폼 도메인이 현재 접속 주소와 일치하는지 확인해주세요.
-          </Text>
-          <Text color="primary.700" fontSize="sm" fontWeight="700">
-            확인 주소: http://localhost:5173
-          </Text>
-          <Text color="gray.500" fontSize="sm">
-            디버그 메시지: {error?.message || 'Unknown Error'}
-          </Text>
-        </VStack>
-      </Flex>
+      <Box
+        w="100%"
+        h="100%"
+        position="relative"
+        overflow="hidden"
+        bg="linear-gradient(135deg, #f7fbff 0%, #eef8f4 48%, #fff7ed 100%)"
+        className="kakao-map-container"
+      >
+        <Box
+          position="absolute"
+          inset={0}
+          opacity={0.6}
+          bg="repeating-linear-gradient(0deg, rgba(37,99,235,0.12) 0 1px, transparent 1px 42px), repeating-linear-gradient(90deg, rgba(31,157,104,0.10) 0 1px, transparent 1px 42px)"
+        />
+        <Box position="absolute" inset={0} bg="radial-gradient(circle at 50% 45%, rgba(37,99,235,0.15), transparent 34%), radial-gradient(circle at 62% 56%, rgba(31,157,104,0.18), transparent 28%)" />
+
+        {[
+          { left: '48%', top: '36%', label: '성수 감성 루트' },
+          { left: '58%', top: '45%', label: '한강 야경 캡슐' },
+          { left: '43%', top: '54%', label: '골목 카페 힌트' },
+        ].map((pin) => (
+          <Box key={pin.label} position="absolute" left={pin.left} top={pin.top} transform="translate(-50%, -50%)">
+            <Flex align="center" gap={2}>
+              <Flex
+                w="38px"
+                h="38px"
+                align="center"
+                justify="center"
+                borderRadius="14px 14px 14px 4px"
+                transform="rotate(-45deg)"
+                bg="var(--atlas-primary)"
+                color="white"
+                boxShadow="0 16px 34px rgba(37, 99, 235, 0.28)"
+              >
+                <Box transform="rotate(45deg)">
+                  <FiMapPin size={18} />
+                </Box>
+              </Flex>
+              <Badge px={3} py={1.5} borderRadius="999px" bg="whiteAlpha.900" color="var(--atlas-text)" boxShadow="sm">
+                {pin.label}
+              </Badge>
+            </Flex>
+          </Box>
+        ))}
+
+        <Flex position="absolute" inset="24px 24px auto 24px" justify="space-between" align="flex-start" gap={3}>
+          <Box className="atlas-hud-card" p={4} maxW="360px">
+            <Text className="atlas-eyebrow">LOCAL ATLAS</Text>
+            <Text color="var(--atlas-text)" fontSize="2xl" fontWeight="800" lineHeight="1.2" mt={2}>
+              데모 지도로 탐험을 시작합니다
+            </Text>
+            <Text color="var(--atlas-muted-text)" fontSize="sm" lineHeight="1.7" mt={3}>
+              카카오맵 설정 전에도 포트폴리오 화면 흐름을 확인할 수 있습니다.
+            </Text>
+          </Box>
+
+          <Button
+            leftIcon={<FiUser />}
+            h="48px"
+            px={5}
+            borderRadius="14px"
+            bg="white"
+            color="var(--atlas-text)"
+            boxShadow="var(--atlas-shadow-soft)"
+            onClick={onDashboardOpen}
+            _hover={{ bg: 'var(--atlas-bg)' }}
+          >
+            내 상태
+          </Button>
+        </Flex>
+      </Box>
     );
   }
 
@@ -1022,103 +1066,130 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
 
       {!isLocating && shouldShowMapControls && (
         <MotionBox
+          className="atlas-map-controls"
           position="absolute"
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: 'spring', damping: 20, stiffness: 180 }}
-          top={{ base: '12px', md: '16px' }}
+          top={{ base: '8px', md: '18px' }}
           left="0"
           w="100%"
-          px={{ base: '12px', md: '16px' }}
-          zIndex={20}
+          px={{ base: '12px', sm: '16px', lg: '24px' }}
+          zIndex={24}
           pointerEvents="none"
         >
-          <VStack spacing={{ base: 2, md: 3 }} align="stretch" maxW="680px" mx="auto">
-            <Flex
-              className="atlas-top-shell"
-              pointerEvents="auto"
-              align="center"
-              justify="space-between"
-              gap={{ base: 2.5, md: 3 }}
-              px={{ base: 3, md: 5 }}
-              py={{ base: 2.5, md: 3 }}
-            >
-              <HStack minW={0} spacing={{ base: 2.5, md: 3 }}>
-                <Flex className="atlas-brand-mark" align="center" justify="center">
-                  <FiMapPin size={18} />
-                </Flex>
-                <Box minW={0}>
-                  <Text className="atlas-eyebrow">LOCAL ATLAS</Text>
-                  <Text className="atlas-headline" noOfLines={1}>
-                    직접 가야 열리는 로컬 캡슐 지도
-                  </Text>
-                  <Text className="atlas-subline" noOfLines={1}>
-                    {activeRegionSubline}
-                  </Text>
-                </Box>
-              </HStack>
-              <HStack spacing={2} flexShrink={0}>
-                <Badge className="atlas-status-badge">
-                  {userLocation ? 'GPS LIVE' : 'BASIC'}
-                </Badge>
-                <Badge className="atlas-count-badge">
-                  {filteredCapsules.length}곳
-                </Badge>
-              </HStack>
-            </Flex>
-
-            <Box pointerEvents="auto">
-              <InputGroup className="atlas-search-shell" size="lg">
-                <InputLeftElement h={{ base: '48px', md: '54px' }} pointerEvents="none">
-                  <FiSearch color="var(--atlas-muted-text)" size={18} />
-                </InputLeftElement>
-                <Input
-                  h={{ base: '48px', md: '54px' }}
-                  pl="3.1rem"
-                  pr="4.5rem"
-                  placeholder="장소, 카테고리, 동네 검색"
-                  bg="transparent"
-                  color="var(--atlas-text)"
-                  border="none"
-                  borderRadius="16px"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSearch();
-                  }}
-                  _focus={{ ring: '2px', ringColor: 'var(--atlas-primary)' }}
-                />
-                <InputRightElement width="3.2rem" h={{ base: '48px', md: '54px' }}>
-                  <IconButton
-                    h={{ base: '36px', md: '40px' }} w={{ base: '36px', md: '40px' }} size="sm" borderRadius="12px"
-                    icon={isSearchLoading ? <Spinner size="xs" color="white" /> : <FiActivity />}
-                    bg="var(--atlas-text)" color="white"
-                    _hover={{ bg: 'var(--atlas-text-subtle)' }}
-                    onClick={handleSearch} aria-label="검색"
-                  />
-                </InputRightElement>
-              </InputGroup>
-
-              {(selectedLocation || targetCapsule) && (
-                <Flex justify="flex-end" mt={2}>
-                  <Badge
-                    as="button"
-                    px={3} py={1.5} borderRadius="12px"
-                    bg="var(--atlas-card)" color="var(--atlas-text)"
-                    boxShadow="var(--atlas-shadow-float)"
-                    display="flex" alignItems="center" gap={1}
-                    fontWeight="500"
-                    onClick={() => {
-                      setTargetCapsule(null);
-                      setIsHudSheetCollapsed(true);
-                      setSearchResults([]);
-                      if (onMapClick) onMapClick(null);
+          <VStack spacing={{ base: 2, md: 3 }} align="stretch" maxW={{ base: '100%', md: '704px', lg: '760px' }} mx="auto">
+            <Box className="atlas-search-panel" pointerEvents="auto">
+              <Flex className="atlas-discovery-bar" align="stretch" gap={{ base: 1.5, md: 2 }}>
+                <InputGroup className="atlas-search-shell atlas-search-field" size="lg" flex="1" minW={0}>
+                  <InputLeftElement h={{ base: '42px', md: '46px' }} pointerEvents="none">
+                    <FiSearch color="var(--atlas-muted-text)" size={18} />
+                  </InputLeftElement>
+                  <Input
+                    h={{ base: '42px', md: '46px' }}
+                    pl="3.1rem"
+                    pr={{ base: 3, md: 4 }}
+                    placeholder="장소, 동네 검색"
+                    bg="transparent"
+                    color="var(--atlas-text)"
+                    border="none"
+                    borderRadius="14px"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSearch();
                     }}
+                    _focus={{ boxShadow: 'none' }}
+                  />
+                </InputGroup>
+
+                <HStack className="atlas-discovery-actions" spacing={2}>
+                  <Button
+                    className="atlas-control-pill"
+                    h={{ base: '42px', md: '46px' }}
+                    px={{ base: 3, md: 3.5 }}
+                    leftIcon={<FiSliders />}
+                    bg={isRegionOpen ? 'var(--atlas-text)' : 'var(--atlas-card)'}
+                    color={isRegionOpen ? 'white' : 'var(--atlas-text)'}
+                    onClick={() => {
+                      setIsRegionOpen(!isRegionOpen);
+                      setIsCategoryOpen(false);
+                    }}
+                    flex={{ base: 1, md: 'initial' }}
                   >
-                    <FiX size={14} /> 선택 해제
-                  </Badge>
-                </Flex>
-              )}
+                    {highlightRegion?.name || currentRegion?.addressName || '동네'}
+                  </Button>
+                  <Button
+                    className="atlas-control-pill"
+                    h={{ base: '42px', md: '46px' }}
+                    px={{ base: 3, md: 3.5 }}
+                    bg={isCategoryOpen ? 'var(--atlas-primary)' : 'var(--atlas-card)'}
+                    color={isCategoryOpen ? 'white' : 'var(--atlas-text)'}
+                    onClick={() => {
+                      setIsCategoryOpen(!isCategoryOpen);
+                      setIsRegionOpen(false);
+                    }}
+                    flex={{ base: 1, md: 'initial' }}
+                  >
+                    {categorySummary}
+                  </Button>
+                  <IconButton
+                    className="atlas-search-submit"
+                    h={{ base: '42px', md: '46px' }}
+                    w={{ base: '42px', md: '46px' }}
+                    icon={isSearchLoading ? <Spinner size="xs" color="white" /> : <FiActivity />}
+                    bg="var(--atlas-text)"
+                    color="white"
+                    _hover={{ bg: 'var(--atlas-text-subtle)' }}
+                    onClick={handleSearch}
+                    aria-label="검색"
+                  />
+                </HStack>
+              </Flex>
+
+              <AnimatePresence>
+                {isCategoryOpen && (
+                  <MotionBox
+                    className="atlas-category-tray"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <HStack
+                      className="atlas-chip-row"
+                      spacing={2}
+                      overflowX="auto"
+                      css={{ '&::-webkit-scrollbar': { display: 'none' } }}
+                      whiteSpace="nowrap"
+                      py={{ base: 1, md: 1.5 }}
+                    >
+                      {categories.map((category) => {
+                        const isSelected = selectedCategories.includes(category);
+
+                        return (
+                          <Button
+                            key={category}
+                            className="atlas-filter-chip"
+                            h="36px"
+                            px={{ base: 3, md: 4 }}
+                            borderRadius="12px"
+                            bg={isSelected ? 'var(--atlas-primary)' : 'var(--atlas-card)'}
+                            color={isSelected ? 'white' : 'var(--atlas-text)'}
+                            border={isSelected ? '1px solid var(--atlas-primary)' : '1px solid var(--atlas-border)'}
+                            boxShadow="none"
+                            _hover={{ bg: isSelected ? 'var(--atlas-primary-hover)' : 'var(--atlas-muted-bg)' }}
+                            onClick={() => toggleCategory(category)}
+                            flexShrink={0}
+                          >
+                            {category}
+                          </Button>
+                        );
+                      })}
+                    </HStack>
+                  </MotionBox>
+                )}
+              </AnimatePresence>
 
               <AnimatePresence>
                 {searchResults.length > 0 && (
@@ -1179,60 +1250,6 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                   </MotionBox>
                 )}
               </AnimatePresence>
-            </Box>
-
-            <Box
-              w="100%"
-              pointerEvents="auto"
-            >
-              <HStack
-                className="atlas-chip-row"
-                spacing={2}
-                overflowX="auto"
-                css={{ '&::-webkit-scrollbar': { display: 'none' } }}
-                whiteSpace="nowrap"
-                py={1}
-              >
-                <Button
-                  className="atlas-filter-chip"
-                  h="38px"
-                  px={{ base: 3, md: 4 }}
-                  leftIcon={<FiSliders />}
-                  borderRadius="12px"
-                  bg={isRegionOpen ? 'var(--atlas-text)' : 'var(--atlas-card)'}
-                  color={isRegionOpen ? 'white' : 'var(--atlas-text)'}
-                  border={isRegionOpen ? '1px solid var(--atlas-text)' : '1px solid var(--atlas-card)'}
-                  boxShadow="var(--atlas-shadow-float)"
-                  _hover={{ bg: isRegionOpen ? 'var(--atlas-text)' : 'var(--atlas-muted-bg)' }}
-                  onClick={() => setIsRegionOpen(!isRegionOpen)}
-                  flexShrink={0}
-                >
-                  {highlightRegion?.name || currentRegion?.addressName || '동네 선택'}
-                </Button>
-
-                {categories.map((category) => {
-                  const isSelected = selectedCategories.includes(category);
-
-                  return (
-                    <Button
-                      key={category}
-                      className="atlas-filter-chip"
-                      h="38px"
-                      px={{ base: 3, md: 4 }}
-                      borderRadius="12px"
-                      bg={isSelected ? 'var(--atlas-primary)' : 'var(--atlas-card)'}
-                      color={isSelected ? 'white' : 'var(--atlas-text)'}
-                      border={isSelected ? '1px solid var(--atlas-primary)' : '1px solid var(--atlas-card)'}
-                      boxShadow="var(--atlas-shadow-float)"
-                      _hover={{ bg: isSelected ? 'var(--atlas-primary-hover)' : 'var(--atlas-muted-bg)' }}
-                      onClick={() => toggleCategory(category)}
-                      flexShrink={0}
-                    >
-                      {category}
-                    </Button>
-                  );
-                })}
-              </HStack>
             </Box>
 
             <AnimatePresence>
@@ -1333,9 +1350,35 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                     </Button>
                   </Flex>
                 )}
-                </MotionBox>
-              )}
-            </AnimatePresence>
+              </MotionBox>
+            )}
+          </AnimatePresence>
+
+            {!isCapsuleLoading && filteredCapsules.length === 0 && !isRegionOpen && (
+              <Box
+                className="atlas-map-empty-state"
+                pointerEvents="none"
+              >
+                <Text color="var(--atlas-text)" fontSize={{ base: 'sm', md: 'md' }} fontWeight="800" mb={1}>
+                  아직 이 지역에 공개 캡슐이 없습니다.
+                </Text>
+                <Text color="var(--atlas-muted-text)" fontSize={{ base: 'xs', md: 'sm' }} lineHeight="1.6">
+                  지도에서 다른 지역을 검색하거나 첫 캡슐을 만들어보세요.
+                </Text>
+              </Box>
+            )}
+
+            {isCapsuleLoading && (
+              <HStack
+                className="atlas-map-loading-state"
+                pointerEvents="none"
+              >
+                <Spinner size="sm" color="primary.500" />
+                <Text color="var(--atlas-muted-text)" fontSize="sm" fontWeight="700">
+                  캡슐을 불러오는 중입니다.
+                </Text>
+              </HStack>
+            )}
           </VStack>
         </MotionBox>
       )}
@@ -1359,49 +1402,17 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
         </Box>
       )}
 
-      {!isLocating && !isCapsuleLoading && filteredCapsules.length === 0 && (
-        <Box position="absolute" left="16px" right="16px" top={{ base: '210px', md: '190px' }} zIndex={18} pointerEvents="none">
-          <Box
-            maxW="520px"
-            mx="auto"
-            px={5}
-            py={4}
-            borderRadius="16px"
-            bg="rgba(255,255,255,0.95)"
-            boxShadow="var(--atlas-shadow-float)"
-            border="1px solid var(--atlas-divider)"
-          >
-            <Text color="var(--atlas-text)" fontSize="md" fontWeight="800" mb={1}>
-              아직 이 지역에 공개 캡슐이 없습니다.
-            </Text>
-            <Text color="var(--atlas-muted-text)" fontSize="sm" lineHeight="1.6">
-              지도에서 다른 지역을 검색하거나 첫 캡슐을 만들어보세요.
-            </Text>
-          </Box>
-        </Box>
-      )}
-
-      {!isLocating && isCapsuleLoading && (
-        <Flex position="absolute" left="16px" right="16px" top={{ base: '210px', md: '190px' }} zIndex={18} justify="center" pointerEvents="none">
-          <HStack px={4} py={3} borderRadius="14px" bg="rgba(255,255,255,0.94)" boxShadow="var(--atlas-shadow-float)">
-            <Spinner size="sm" color="primary.500" />
-            <Text color="var(--atlas-muted-text)" fontSize="sm" fontWeight="700">
-              캡슐을 불러오는 중입니다.
-            </Text>
-          </HStack>
-        </Flex>
-      )}
-
       {/* 내 위치 바로가기 - 독립 플로팅 버튼 */}
       {!isLocating && shouldShowMapControls && (
         <MotionBox
+          className="atlas-location-action"
           position="absolute"
-          bottom={{ base: '200px', md: '120px' }}
-          right="16px"
-          zIndex={20}
+          bottom={{ base: 'calc(env(safe-area-inset-bottom) + 196px)', md: '112px', lg: '120px' }}
+          right={{ base: '12px', md: '16px', lg: '20px' }}
+          zIndex={22}
           initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', damping: 18, stiffness: 260, delay: 0.15 }}
+          animate={{ scale: 1, opacity: 1, y: isActionMenuOpen ? -128 : 0 }}
+          transition={{ type: 'spring', damping: 22, stiffness: 300, delay: 0.05 }}
         >
           <Button
             className="atlas-action-menu-button"
@@ -1428,13 +1439,14 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
       {/* 햄버거 액션 메뉴 */}
       {!isLocating && shouldShowMapControls && (
         <Box
+          className="atlas-floating-action-menu"
           position="absolute"
-          bottom={{ base: '136px', md: '48px' }}
-          right="16px"
-          zIndex={20}
+          bottom={{ base: 'calc(env(safe-area-inset-bottom) + 128px)', md: '40px', lg: '48px' }}
+          right={{ base: '12px', md: '16px', lg: '20px' }}
+          zIndex={23}
           style={{ position: 'absolute' }}
         >
-          {/* 펼쳐진 메뉴 아이템들 - 햄버거 버튼 위로 순서대로 */}
+          {/* 펼쳐진 메뉴 아이템들 - 내 위치 버튼은 열릴 때 위로 이동합니다. */}
           <AnimatePresence>
           {isActionMenuOpen && [
             { icon: <FiUser size={20} />, label: '대시보드', onClick: () => { onDashboardOpen(); setIsActionMenuOpen(false); }, bg: 'white', color: 'gray.700' },

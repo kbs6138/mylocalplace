@@ -6,6 +6,25 @@ import AuthOverlay from './components/AuthOverlay';
 import ShopOverlay from './components/ShopOverlay';
 import { isSupabaseConfigured, supabase } from './supabaseClient';
 
+const DEMO_AUTH_STORAGE_KEY = 'local-atlas-demo-auth';
+const DEMO_SESSION = {
+  user: {
+    id: 'demo-admin',
+    email: 'admin@test.com',
+  },
+};
+const DEMO_PROFILE = {
+  id: 'demo-admin',
+  nickname: 'Admin',
+  energy: 100,
+  master_keys: 3,
+  is_pro: true,
+};
+
+function getStoredDemoAuth() {
+  return typeof window !== 'undefined' && window.localStorage.getItem(DEMO_AUTH_STORAGE_KEY) === 'true';
+}
+
 function AppBootSplash() {
   return (
     <Flex
@@ -81,14 +100,15 @@ function AppConfigError() {
 
 function App() {
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isDemoSession, setIsDemoSession] = useState(() => getStoredDemoAuth());
+  const [session, setSession] = useState(() => (getStoredDemoAuth() ? DEMO_SESSION : null));
+  const [profile, setProfile] = useState(() => (getStoredDemoAuth() ? DEMO_PROFILE : null));
+  const [isAuthReady, setIsAuthReady] = useState(() => getStoredDemoAuth());
   const { isOpen: isDashboardOpen, onOpen: onDashboardOpen, onClose: onDashboardClose } = useDisclosure();
   const { isOpen: isShopOpen, onClose: onShopClose } = useDisclosure();
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || isDemoSession) {
       return undefined;
     }
 
@@ -154,9 +174,42 @@ function App() {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [isDemoSession]);
 
-  if (!isSupabaseConfigured) {
+  const handleDemoLogin = () => {
+    window.localStorage.setItem(DEMO_AUTH_STORAGE_KEY, 'true');
+    setIsDemoSession(true);
+    setSession(DEMO_SESSION);
+    setProfile(DEMO_PROFILE);
+    setIsAuthReady(true);
+    window.setTimeout(() => {
+      window.location.reload();
+    }, 0);
+  };
+
+  const handleLogout = async () => {
+    if (!window.confirm('로그아웃 하시겠습니까?')) {
+      return;
+    }
+
+    if (isDemoSession) {
+      window.localStorage.removeItem(DEMO_AUTH_STORAGE_KEY);
+      setIsDemoSession(false);
+      setSession(null);
+      setProfile(null);
+      onDashboardClose();
+      return;
+    }
+
+    await supabase.auth.signOut();
+    onDashboardClose();
+  };
+
+  if (!isSupabaseConfigured && !isDemoSession && !session) {
+    return <AuthOverlay onDemoLogin={handleDemoLogin} />;
+  }
+
+  if (!isSupabaseConfigured && !isDemoSession) {
     return <AppConfigError />;
   }
 
@@ -165,7 +218,7 @@ function App() {
   }
 
   if (!session) {
-    return <AuthOverlay />;
+    return <AuthOverlay onDemoLogin={handleDemoLogin} />;
   }
 
   return (
@@ -177,8 +230,8 @@ function App() {
         userProfile={profile}
       />
 
-      <ExplorerDashboard isOpen={isDashboardOpen} onClose={onDashboardClose} userProfile={profile} />
-      <AuthOverlay session={session} isReady={isAuthReady} setUserProfile={setProfile} />
+      <ExplorerDashboard isOpen={isDashboardOpen} onClose={onDashboardClose} onLogout={handleLogout} userProfile={profile} />
+      <AuthOverlay session={session} isReady={isAuthReady} setUserProfile={setProfile} onDemoLogin={handleDemoLogin} />
 
       {/* MVP 이후 결제/아이템 상점 기능: 지도 화면에서는 상점 진입 버튼을 숨깁니다. */}
       <ShopOverlay isOpen={isShopOpen} onClose={onShopClose} />
