@@ -28,15 +28,9 @@ import {
 } from '@chakra-ui/react';
 import { FiLayers, FiMapPin, FiTarget, FiUsers } from 'react-icons/fi';
 import { supabase } from '../supabaseClient';
+import { CAPSULE_CATEGORY_OPTIONS } from '../utils/capsuleCategories';
 
-const categories = [
-  '☕️ 로컬 카페',
-  '🍽️ 동네 숨은 맛집',
-  '🌄 나만 아는 경관',
-  '🌃 비밀 야경',
-  '🎧 인디 음악/바',
-  '🧩 기타 아지트',
-];
+const categories = CAPSULE_CATEGORY_OPTIONS;
 
 const CAPSULE_RETURN_FIELDS = [
   'id',
@@ -82,8 +76,17 @@ export default function PlantingDrawer({
   const toast = useToast();
 
   const handlePlant = async () => {
-    if (!title.trim()) {
-      toast({ title: '캡슐 제목을 입력해주세요.', status: 'warning', duration: 2000 });
+    const trimmedTitle = title.trim();
+    const trimmedHint = hint.trim();
+
+    // MVP 생성 기준을 프론트에서 먼저 검증해 빈 캡슐이 지도에 노출되지 않게 합니다.
+    if (trimmedTitle.length < 2) {
+      toast({ title: '캡슐 제목은 2자 이상 입력해주세요.', status: 'warning', duration: 2000 });
+      return;
+    }
+
+    if (trimmedHint.length < 5) {
+      toast({ title: '숨겨진 메시지는 5자 이상 입력해주세요.', status: 'warning', duration: 2000 });
       return;
     }
 
@@ -109,8 +112,8 @@ export default function PlantingDrawer({
         {
           lat: targetLocation.latitude,
           lng: targetLocation.longitude,
-          title,
-          hint,
+          title: trimmedTitle,
+          hint: trimmedHint,
           category: selectedCategories.join(','),
           difficulty,
           access_limit: accessCount,
@@ -128,7 +131,7 @@ export default function PlantingDrawer({
 
     toast({
       title: '캡슐 매설 완료',
-      description: '좌표와 힌트가 저장되었습니다.',
+      description: '이 위치 근처에 도착한 사용자만 숨겨진 메시지를 열 수 있습니다.',
       status: 'success',
       duration: 3000,
     });
@@ -192,7 +195,7 @@ export default function PlantingDrawer({
                 아지트 매설하기
               </Text>
               <Text color="gray.600" fontSize="sm" mt={2} lineHeight="1.8">
-                제목, 힌트, 공개 범위를 정리하면 지도 위에 새 캡슐을 바로 남길 수 있습니다.
+                이 장소에 숨겨진 캡슐을 남깁니다. 다른 사용자는 실제로 이 위치 근처에 도착해야 메시지를 열 수 있습니다.
               </Text>
             </Box>
           </VStack>
@@ -220,7 +223,7 @@ export default function PlantingDrawer({
                           TARGET COORDINATES
                         </Text>
                         <Text color="ink.900" fontSize="lg" fontWeight="700" mb={1}>
-                          {isCustomLocation ? '선택한 지점에 매설' : '현재 위치에 매설'}
+                          {isCustomLocation ? '선택한 지점에 캡슐 만들기' : '현재 위치에 캡슐 만들기'}
                         </Text>
                         <Text color="gray.600" fontSize="sm">
                           {targetLocation
@@ -251,11 +254,11 @@ export default function PlantingDrawer({
                     <VStack spacing={5} align="stretch">
                       <FormControl isRequired>
                         <FormLabel color="ink.900" fontSize="sm" fontWeight="700">
-                          아지트 이름
+                          캡슐 제목
                         </FormLabel>
                         <Input
                           h="54px"
-                          placeholder="예: 골목 끝 2층 LP 카페"
+                          placeholder="예: 창가가 좋은 조용한 카페"
                           value={title}
                           onChange={(e) => setTitle(e.target.value)}
                           bg="gray.50"
@@ -268,10 +271,10 @@ export default function PlantingDrawer({
 
                       <FormControl isRequired>
                         <FormLabel color="ink.900" fontSize="sm" fontWeight="700">
-                          장소 힌트
+                          숨겨진 메시지
                         </FormLabel>
                         <Textarea
-                          placeholder="다른 사람이 장소를 좁혀갈 수 있도록 감각적인 힌트를 남겨주세요."
+                          placeholder="도착한 사람만 알 수 있는 숨은 정보, 추천 시간대, 포토 포인트를 적어주세요."
                           value={hint}
                           onChange={(e) => setHint(e.target.value)}
                           bg="gray.50"
@@ -340,7 +343,7 @@ export default function PlantingDrawer({
                       <FormControl>
                         <Flex justify="space-between" align="center" mb={3}>
                           <FormLabel m={0} color="ink.900" fontSize="sm" fontWeight="700">
-                            발견 난이도
+                            탐험 난이도
                           </FormLabel>
                           <HStack
                             px={3}
@@ -378,7 +381,7 @@ export default function PlantingDrawer({
                       <FormControl>
                         <Flex justify="space-between" align="center" mb={3}>
                           <FormLabel m={0} color="ink.900" fontSize="sm" fontWeight="700">
-                            열람 가능 인원
+                            선착순 열람 인원
                           </FormLabel>
                           <HStack
                             px={3}
@@ -402,7 +405,7 @@ export default function PlantingDrawer({
                           <SliderThumb boxSize={6} border="2px solid white" boxShadow="md" />
                         </Slider>
                         <Text mt={2} fontSize="xs" color="gray.500">
-                          설정한 인원만 선착순으로 힌트와 메시지를 열람할 수 있습니다.
+                          설정한 인원만 선착순으로 숨겨진 메시지를 열람할 수 있습니다.
                         </Text>
                       </FormControl>
                     </VStack>
@@ -465,8 +468,8 @@ export default function PlantingDrawer({
             align={{ base: 'stretch', md: 'center' }}
             justify="space-between"
           >
-            <Text color="gray.500" fontSize="sm">
-              저장 후 지도에 즉시 반영됩니다.
+                <Text color="gray.500" fontSize="sm">
+              저장 후 지도에 즉시 반영됩니다. 공개 캡슐은 운영 정책상 추후 승인제로 전환될 수 있습니다.
             </Text>
             <HStack spacing={3}>
               <Button
@@ -490,7 +493,7 @@ export default function PlantingDrawer({
                 onClick={handlePlant}
                 _hover={{ bg: 'primary.700', transform: 'translateY(-1px)' }}
               >
-                기록 완료하기
+                캡슐 만들기
               </Button>
             </HStack>
           </Flex>

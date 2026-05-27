@@ -26,7 +26,6 @@ import {
   FiNavigation,
   FiPlus,
   FiSearch,
-  FiShoppingBag,
   FiSliders,
   FiUser,
   FiX,
@@ -37,6 +36,11 @@ import { supabase } from '../supabaseClient';
 import ExplorerHUD from './ExplorerHUD';
 import PlantingDrawer from './PlantingDrawer';
 import UnlockingOverlay from './UnlockingOverlay';
+import {
+  CAPSULE_CATEGORY_FILTERS,
+  getCapsuleCategories,
+  getCapsuleCategoryIcon,
+} from '../utils/capsuleCategories';
 
 const MotionText = motion.create(Text);
 const MotionBox = motion.create(Box);
@@ -62,6 +66,31 @@ function withCapsuleDefaults(capsule) {
     unlock_radius_meters: 50,
     created_at: null,
     ...capsule,
+  };
+}
+
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+  const earthRadius = 6371000;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  return earthRadius * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+function getSheetFocusCenter(coords, level) {
+  const zoomFactor = Math.max(1, 2 ** (level - 3));
+  // 하단 카드가 열린 상태에서도 선택한 마커가 카드 위쪽 지도 영역에 남도록 중심을 살짝 아래로 둡니다.
+  const latitudeOffset = Math.min(0.018, 0.0024 * zoomFactor);
+
+  return {
+    latitude: coords.latitude - latitudeOffset,
+    longitude: coords.longitude,
   };
 }
 
@@ -109,7 +138,7 @@ function getRegionColumnLabel(options, level) {
   return '리';
 }
 
-export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardOpen, onShopOpen, userProfile }) {
+export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardOpen, userProfile }) {
   const [loading, error] = useKakaoLoader({
     appkey: import.meta.env.VITE_KAKAO_API_KEY || '',
     libraries: ['clusterer', 'drawing', 'services'],
@@ -124,6 +153,8 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
   const [isHudSheetCollapsed, setIsHudSheetCollapsed] = useState(true);
   const [unlockingCapsule, setUnlockingCapsule] = useState(null);
   const [allCapsules, setAllCapsules] = useState([]);
+  const [isCapsuleLoading, setIsCapsuleLoading] = useState(true);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState(['전체']);
   const [isPlantingOpen, setIsPlantingOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -147,10 +178,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
     viewLevelRef.current = viewState.level;
   }, [viewState.level]);
 
-  const categories = [
-    '전체', '☕️ 로컬 카페', '🍽️ 동네 숨은 맛집', '🌄 나만 아는 경관', 
-    '🌃 비밀 야경', '🎧 인디 음악/바', '🧩 기타 아지트'
-  ];
+  const categories = CAPSULE_CATEGORY_FILTERS;
 
   const [isRegionOpen, setIsRegionOpen] = useState(false);
   const [regionCatalog, setRegionCatalog] = useState(() => ({ roots: [], byAddress: new globalThis.Map(), isLoaded: false }));
@@ -162,6 +190,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
     (coords, nextLevel, options = {}) => {
       const currentLevel = viewLevelRef.current;
       const targetLevel = nextLevel ?? currentLevel;
+      const centerCoords = options.focusForSheet ? getSheetFocusCenter(coords, targetLevel) : coords;
 
       if (glideTimeoutRef.current) {
         window.clearTimeout(glideTimeoutRef.current);
@@ -181,13 +210,14 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
 
       if (mapInstance && window.kakao?.maps) {
         const targetLatLng = new window.kakao.maps.LatLng(coords.latitude, coords.longitude);
+        const centerLatLng = new window.kakao.maps.LatLng(centerCoords.latitude, centerCoords.longitude);
         const moveToTarget = () => {
           mapInstance.relayout();
-          mapInstance.panTo(targetLatLng);
+          mapInstance.panTo(centerLatLng);
           setViewState(prev => ({
             ...prev,
-            latitude: coords.latitude,
-            longitude: coords.longitude,
+            latitude: centerCoords.latitude,
+            longitude: centerCoords.longitude,
             level: targetLevel,
           }));
           viewLevelRef.current = targetLevel;
@@ -202,7 +232,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
         };
 
         if (targetLevel !== currentLevel) {
-          mapInstance.panTo(targetLatLng);
+          mapInstance.panTo(centerLatLng);
 
           glideTimeoutRef.current = window.setTimeout(() => {
             mapInstance.setLevel(targetLevel, {
@@ -224,8 +254,8 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
         // mapInstance 없을 때 fallback
         setViewState(prev => ({
           ...prev,
-          latitude: coords.latitude,
-          longitude: coords.longitude,
+          latitude: centerCoords.latitude,
+          longitude: centerCoords.longitude,
           level: targetLevel,
         }));
       }
@@ -357,6 +387,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
   );
 
   const handleNewCapsule = (newCapsule) => {
+    // 새로 만든 캡슐은 즉시 지도에 반영해 사용자가 생성 결과를 바로 확인하게 합니다.
     setAllCapsules(prev => [newCapsule, ...prev]);
     setSelectedCategories(['전체']);
   };
@@ -364,6 +395,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
   const handleUnlockSuccess = (result) => {
     if (!unlockingCapsule || result?.already_unlocked) return;
 
+    // RPC 성공 이후에만 열람 수를 로컬 반영합니다. 숨김 메시지는 목록 데이터에 저장하지 않습니다.
     const nextAccessCount = (unlockingCapsule.access_count || 0) + 1;
     const updateCapsule = (capsule) =>
       capsule.id === unlockingCapsule.id
@@ -405,9 +437,65 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
     });
   };
 
+  const handleUpdateCapsule = async (capsuleId, patch) => {
+    if (!userProfile?.id) return false;
+
+    const title = patch.title?.trim() || '';
+    const category = patch.category?.trim() || '';
+
+    // 사용자가 직접 만든 캡슐의 공개 정보만 수정합니다. 숨겨진 메시지와 좌표는 여기서 건드리지 않습니다.
+    if (title.length < 2) {
+      toast({
+        title: '캡슐 이름은 2자 이상 입력해주세요.',
+        status: 'warning',
+        duration: 2200,
+      });
+      return false;
+    }
+
+    if (!category) {
+      toast({
+        title: '카테고리를 선택해주세요.',
+        status: 'warning',
+        duration: 2200,
+      });
+      return false;
+    }
+
+    const { data, error } = await supabase
+      .from('mlp_mylocalplace')
+      .update({ title, category })
+      .eq('id', capsuleId)
+      .eq('user_id', userProfile.id)
+      .select(CAPSULE_LIST_FIELDS)
+      .single();
+
+    if (error) {
+      toast({
+        title: '캡슐 정보를 수정하지 못했습니다.',
+        description: error.message,
+        status: 'error',
+        duration: 3500,
+      });
+      return false;
+    }
+
+    const updatedCapsule = withCapsuleDefaults(data);
+    setAllCapsules(prev => prev.map(capsule => (capsule.id === capsuleId ? updatedCapsule : capsule)));
+    setTargetCapsule(prev => (prev?.id === capsuleId ? updatedCapsule : prev));
+
+    toast({
+      title: '캡슐 정보가 수정되었습니다.',
+      status: 'success',
+      duration: 2200,
+    });
+    return true;
+  };
+
   useEffect(() => {
     const initFetch = async () => {
       if (!userProfile) return;
+      setIsCapsuleLoading(true);
 
       const applyVisibility = (query) => {
         if (userProfile.nickname !== 'devtest0729') {
@@ -421,6 +509,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
       const { data, error } = await query;
 
       if (!error) setAllCapsules((data || []).map(withCapsuleDefaults));
+      setIsCapsuleLoading(false);
     };
     initFetch();
   }, [userProfile]);
@@ -488,12 +577,14 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
           latitude: position.coords.latitude,
         };
         setUserLocation(coords);
+        setLocationPermissionDenied(false);
         glideTo(coords, 4);
         maybeRefreshCurrentRegion(coords, true);
         setIsLocating(false);
       },
       (geoError) => {
         console.error('Location error:', geoError);
+        setLocationPermissionDenied(geoError?.code === geoError?.PERMISSION_DENIED);
         setIsLocating(false);
       },
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
@@ -507,6 +598,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
         };
 
         setUserLocation(coords);
+        setLocationPermissionDenied(false);
         maybeRefreshCurrentRegion(coords);
       },
       () => {},
@@ -571,15 +663,18 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
               latitude: position.coords.latitude,
             };
             setUserLocation(coords);
+            setLocationPermissionDenied(false);
             glideTo(coords, 4);
             maybeRefreshCurrentRegion(coords, true);
             setIsLocating(false);
           },
           (geoError) => {
             console.error('Location error:', geoError);
+            setLocationPermissionDenied(geoError?.code === geoError?.PERMISSION_DENIED);
             setIsLocating(false);
             toast({
               title: '위치 정보를 가져올 수 없습니다.',
+              description: '기본 지도에서 탐색할 수 있지만, 현장 인증에는 위치 권한이 필요합니다.',
               status: 'error',
               duration: 2000,
             });
@@ -592,11 +687,24 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
     }
   };
 
-  const filteredCapsules = allCapsules.filter(capsule => {
-    if (selectedCategories.includes('전체')) return true;
-    const capsuleCats = (capsule.category || '').split(',');
-    return capsuleCats.some(cat => selectedCategories.includes(cat));
-  });
+  const filteredCapsules = allCapsules
+    .filter(capsule => {
+      if (selectedCategories.includes('전체')) return true;
+      const capsuleCats = getCapsuleCategories(capsule.category);
+      return capsuleCats.some(cat => selectedCategories.includes(cat));
+    })
+    .sort((a, b) => {
+      // 공식 추천 캡슐을 먼저 보여주고, 위치가 있으면 가까운 순으로 정렬합니다.
+      if (a.is_promoted !== b.is_promoted) return a.is_promoted ? -1 : 1;
+
+      if (userLocation) {
+        const aDistance = getDistanceFromLatLonInMeters(userLocation.latitude, userLocation.longitude, a.lat, a.lng);
+        const bDistance = getDistanceFromLatLonInMeters(userLocation.latitude, userLocation.longitude, b.lat, b.lng);
+        if (aDistance !== bDistance) return aDistance - bDistance;
+      }
+
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
 
   const activeRegionLabel = highlightRegion?.name || currentRegion?.addressName || (userLocation ? '내 위치 탐색 중' : '국내 기본 탐색');
   const activeRegionSubline = currentRegion?.addressName
@@ -604,6 +712,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
     : userLocation
       ? '실시간 위치 기반 탐색'
       : '국내 행정구역 선택 탐색';
+  const shouldShowMapControls = isHudSheetCollapsed || !targetCapsule;
   if (error) {
     return (
       <Flex w="100%" h="100%" align="center" justify="center" px={6} py={10}>
@@ -624,7 +733,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
             카카오맵을 불러오지 못했습니다.
           </Text>
           <Text color="gray.600" fontSize="sm" lineHeight="1.8">
-            키 값이 잘못되었거나 카카오 디벨로퍼스의 Web 플랫폼 도메인에 현재 개발 주소가 등록되지 않았을 가능성이 큽니다.
+            지도 설정을 확인하지 못했습니다. Kakao JavaScript 키와 등록된 Web 플랫폼 도메인이 현재 접속 주소와 일치하는지 확인해주세요.
           </Text>
           <Text color="primary.700" fontSize="sm" fontWeight="700">
             확인 주소: http://localhost:5173
@@ -741,11 +850,13 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                 onClick={(event) => {
                   event.stopPropagation();
                   setTargetCapsule(capsule);
+                  if (onMapClick) onMapClick(null);
                   setIsHudSheetCollapsed(false);
+                  setIsActionMenuOpen(false);
                   glideTo(
                     { latitude: capsule.lat, longitude: capsule.lng },
                     Math.min(viewLevelRef.current, 3),
-                    { keepHudOpen: true },
+                    { keepHudOpen: true, focusForSheet: true },
                   );
                 }}
                 onMouseDown={(event) => event.stopPropagation()}
@@ -759,7 +870,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                 <div className="holo-marker">
                   <div className="holo-marker-body">
                     <span className="holo-marker-icon" style={{ fontSize: '18px' }}>
-                      {(capsule.category || '').split(',')[0]?.split(' ')[0] || '📍'}
+                      {getCapsuleCategoryIcon(capsule.category)}
                     </span>
                   </div>
                 </div>
@@ -891,7 +1002,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
               위치 정보를 찾는 중입니다.
             </MotionText>
             <Text color="gray.600" fontSize="sm" lineHeight="1.7">
-              GPS 신호를 수신해 지도 중심과 주변 아지트를 실제 위치에 맞추고 있습니다.
+              GPS 신호를 수신해 지도 중심과 주변 캡슐을 실제 위치에 맞추고 있습니다.
             </Text>
             <Button
               className="interactive-card"
@@ -901,45 +1012,45 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
               borderColor="gray.200"
               bg="white"
               _hover={{ bg: 'gray.50' }}
-            onClick={() => setIsLocating(false)}
-          >
-            기본 지도로 시작하기
-          </Button>
+              onClick={() => setIsLocating(false)}
+            >
+              기본 지도로 시작하기
+            </Button>
           </VStack>
         </Flex>
       )}
 
-      {!isLocating && (
+      {!isLocating && shouldShowMapControls && (
         <MotionBox
           position="absolute"
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: 'spring', damping: 20, stiffness: 180 }}
-          top="16px"
+          top={{ base: '12px', md: '16px' }}
           left="0"
           w="100%"
-          px="16px"
+          px={{ base: '12px', md: '16px' }}
           zIndex={20}
           pointerEvents="none"
         >
-          <VStack spacing={3} align="stretch" maxW="680px" mx="auto">
+          <VStack spacing={{ base: 2, md: 3 }} align="stretch" maxW="680px" mx="auto">
             <Flex
               className="atlas-top-shell"
               pointerEvents="auto"
               align="center"
               justify="space-between"
-              gap={3}
-              px={{ base: 4, md: 5 }}
-              py={3}
+              gap={{ base: 2.5, md: 3 }}
+              px={{ base: 3, md: 5 }}
+              py={{ base: 2.5, md: 3 }}
             >
-              <HStack minW={0} spacing={3}>
+              <HStack minW={0} spacing={{ base: 2.5, md: 3 }}>
                 <Flex className="atlas-brand-mark" align="center" justify="center">
                   <FiMapPin size={18} />
                 </Flex>
                 <Box minW={0}>
                   <Text className="atlas-eyebrow">LOCAL ATLAS</Text>
                   <Text className="atlas-headline" noOfLines={1}>
-                    {activeRegionLabel}
+                    직접 가야 열리는 로컬 캡슐 지도
                   </Text>
                   <Text className="atlas-subline" noOfLines={1}>
                     {activeRegionSubline}
@@ -958,11 +1069,11 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
 
             <Box pointerEvents="auto">
               <InputGroup className="atlas-search-shell" size="lg">
-                <InputLeftElement h="54px" pointerEvents="none">
+                <InputLeftElement h={{ base: '48px', md: '54px' }} pointerEvents="none">
                   <FiSearch color="var(--atlas-muted-text)" size={18} />
                 </InputLeftElement>
                 <Input
-                  h="54px"
+                  h={{ base: '48px', md: '54px' }}
                   pl="3.1rem"
                   pr="4.5rem"
                   placeholder="장소, 카테고리, 동네 검색"
@@ -977,9 +1088,9 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                   }}
                   _focus={{ ring: '2px', ringColor: 'var(--atlas-primary)' }}
                 />
-                <InputRightElement width="3.4rem" h="54px">
+                <InputRightElement width="3.2rem" h={{ base: '48px', md: '54px' }}>
                   <IconButton
-                    h="40px" w="40px" size="sm" borderRadius="12px"
+                    h={{ base: '36px', md: '40px' }} w={{ base: '36px', md: '40px' }} size="sm" borderRadius="12px"
                     icon={isSearchLoading ? <Spinner size="xs" color="white" /> : <FiActivity />}
                     bg="var(--atlas-text)" color="white"
                     _hover={{ bg: 'var(--atlas-text-subtle)' }}
@@ -1085,7 +1196,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                 <Button
                   className="atlas-filter-chip"
                   h="38px"
-                  px={4}
+                  px={{ base: 3, md: 4 }}
                   leftIcon={<FiSliders />}
                   borderRadius="12px"
                   bg={isRegionOpen ? 'var(--atlas-text)' : 'var(--atlas-card)'}
@@ -1107,7 +1218,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                       key={category}
                       className="atlas-filter-chip"
                       h="38px"
-                      px={4}
+                      px={{ base: 3, md: 4 }}
                       borderRadius="12px"
                       bg={isSelected ? 'var(--atlas-primary)' : 'var(--atlas-card)'}
                       color={isSelected ? 'white' : 'var(--atlas-text)'}
@@ -1229,8 +1340,60 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
         </MotionBox>
       )}
 
+      {!isLocating && locationPermissionDenied && (
+        <Box position="absolute" left="16px" right="16px" bottom={{ base: '206px', md: '122px' }} zIndex={19} pointerEvents="none">
+          <Box
+            maxW="520px"
+            mx="auto"
+            px={4}
+            py={3}
+            borderRadius="14px"
+            bg="rgba(255,255,255,0.94)"
+            boxShadow="var(--atlas-shadow-float)"
+            border="1px solid var(--atlas-divider)"
+          >
+            <Text color="var(--atlas-text)" fontSize="sm" fontWeight="750" lineHeight="1.6">
+              기본 지도에서 탐색할 수 있지만, 현장 인증에는 위치 권한이 필요합니다.
+            </Text>
+          </Box>
+        </Box>
+      )}
+
+      {!isLocating && !isCapsuleLoading && filteredCapsules.length === 0 && (
+        <Box position="absolute" left="16px" right="16px" top={{ base: '210px', md: '190px' }} zIndex={18} pointerEvents="none">
+          <Box
+            maxW="520px"
+            mx="auto"
+            px={5}
+            py={4}
+            borderRadius="16px"
+            bg="rgba(255,255,255,0.95)"
+            boxShadow="var(--atlas-shadow-float)"
+            border="1px solid var(--atlas-divider)"
+          >
+            <Text color="var(--atlas-text)" fontSize="md" fontWeight="800" mb={1}>
+              아직 이 지역에 공개 캡슐이 없습니다.
+            </Text>
+            <Text color="var(--atlas-muted-text)" fontSize="sm" lineHeight="1.6">
+              지도에서 다른 지역을 검색하거나 첫 캡슐을 만들어보세요.
+            </Text>
+          </Box>
+        </Box>
+      )}
+
+      {!isLocating && isCapsuleLoading && (
+        <Flex position="absolute" left="16px" right="16px" top={{ base: '210px', md: '190px' }} zIndex={18} justify="center" pointerEvents="none">
+          <HStack px={4} py={3} borderRadius="14px" bg="rgba(255,255,255,0.94)" boxShadow="var(--atlas-shadow-float)">
+            <Spinner size="sm" color="primary.500" />
+            <Text color="var(--atlas-muted-text)" fontSize="sm" fontWeight="700">
+              캡슐을 불러오는 중입니다.
+            </Text>
+          </HStack>
+        </Flex>
+      )}
+
       {/* 내 위치 바로가기 - 독립 플로팅 버튼 */}
-      {!isLocating && (
+      {!isLocating && shouldShowMapControls && (
         <MotionBox
           position="absolute"
           bottom={{ base: '200px', md: '120px' }}
@@ -1263,7 +1426,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
       )}
 
       {/* 햄버거 액션 메뉴 */}
-      {!isLocating && (
+      {!isLocating && shouldShowMapControls && (
         <Box
           position="absolute"
           bottom={{ base: '136px', md: '48px' }}
@@ -1275,8 +1438,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
           <AnimatePresence>
           {isActionMenuOpen && [
             { icon: <FiUser size={20} />, label: '대시보드', onClick: () => { onDashboardOpen(); setIsActionMenuOpen(false); }, bg: 'white', color: 'gray.700' },
-            { icon: <FiShoppingBag size={20} />, label: '상점', onClick: () => { onShopOpen(); setIsActionMenuOpen(false); }, bg: 'white', color: 'gray.700' },
-            { icon: <FiPlus size={20} />, label: '새 아지트', onClick: () => { setIsPlantingOpen(true); setIsActionMenuOpen(false); }, bg: 'ink.900', color: 'white' },
+            { icon: <FiPlus size={20} />, label: '캡슐 만들기', onClick: () => { setIsPlantingOpen(true); setIsActionMenuOpen(false); }, bg: 'ink.900', color: 'white' },
           ].map((item, index) => (
             <MotionBox
               key={item.label}
@@ -1393,9 +1555,9 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
         activeRegionLabel={activeRegionLabel}
         userProfile={userProfile}
         onDashboardOpen={onDashboardOpen}
-        onShopOpen={onShopOpen}
         onUnlockOpen={() => setUnlockingCapsule(targetCapsule)}
         onReportCapsule={handleReportCapsule}
+        onUpdateCapsule={handleUpdateCapsule}
         isSheetCollapsed={isHudSheetCollapsed}
         onSheetToggle={() => setIsHudSheetCollapsed((prev) => !prev)}
       />

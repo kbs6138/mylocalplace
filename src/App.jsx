@@ -35,7 +35,7 @@ function AppBootSplash() {
           LOCAL ATLAS
         </Text>
         <Text color="var(--atlas-muted-text)" fontSize="sm" lineHeight="1.7">
-          지도와 탐험 데이터를 불러오는 중입니다. 주변 아지트와 개인 탐험 기록을 곧 연결합니다.
+          지도와 탐험 데이터를 불러오는 중입니다. 주변 캡슐과 개인 탐험 기록을 곧 연결합니다.
         </Text>
         <Spinner size="lg" color="var(--atlas-primary)" thickness="4px" speed="0.7s" />
       </VStack>
@@ -49,7 +49,7 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const { isOpen: isDashboardOpen, onOpen: onDashboardOpen, onClose: onDashboardClose } = useDisclosure();
-  const { isOpen: isShopOpen, onOpen: onShopOpen, onClose: onShopClose } = useDisclosure();
+  const { isOpen: isShopOpen, onClose: onShopClose } = useDisclosure();
 
   useEffect(() => {
     let isMounted = true;
@@ -128,16 +128,15 @@ function App() {
     <Box w="100vw" h="100vh" position="relative" overflow="hidden" bg="transparent">
       <ExplorerMap
         selectedLocation={selectedLocation}
-        onMapClick={() => setSelectedLocation(null)}
+        onMapClick={(coords) => setSelectedLocation(coords)}
         onDashboardOpen={onDashboardOpen}
-        onShopOpen={onShopOpen}
         userProfile={profile}
       />
 
       <ExplorerDashboard isOpen={isDashboardOpen} onClose={onDashboardClose} userProfile={profile} />
       <AuthOverlay session={session} isReady={isAuthReady} setUserProfile={setProfile} />
-      
-      {/* 상점 결제 모달 (Store Modal) */}
+
+      {/* MVP 이후 결제/아이템 상점 기능: 지도 화면에서는 상점 진입 버튼을 숨깁니다. */}
       <ShopOverlay isOpen={isShopOpen} onClose={onShopClose} />
     </Box>
   );

@@ -18,7 +18,6 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
-import ReactECharts from 'echarts-for-react';
 import {
   FiActivity,
   FiArrowLeft,
@@ -27,11 +26,11 @@ import {
   FiMap,
   FiTarget,
   FiTrendingUp,
-  FiZap,
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { supabase } from '../supabaseClient';
 import AtlasGlobe from './AtlasGlobe';
+import { getPrimaryCapsuleCategory } from '../utils/capsuleCategories';
 
 const MotionBox = motion.create(Box);
 
@@ -71,6 +70,7 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
     let isActive = true;
 
     async function loadActivity() {
+      // 대시보드는 고정 분석값 대신 Supabase의 실제 발견/생성 기록만 보여줍니다.
       const [capsulesResult, discoveriesResult] = await Promise.all([
         supabase
           .from('mlp_mylocalplace')
@@ -103,56 +103,11 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
     onClose();
   };
 
-  const radarOption = {
-    backgroundColor: 'transparent',
-    radar: {
-      indicator: [
-        { name: '개척성', max: 100 },
-        { name: '도전성', max: 100 },
-        { name: '희소성', max: 100 },
-        { name: '반경', max: 100 },
-        { name: '야행성', max: 100 },
-      ],
-      center: ['50%', '55%'],
-      radius: '58%',
-      axisName: {
-        color: '#687181',
-        fontSize: 11,
-        fontWeight: 700,
-      },
-      splitArea: {
-        areaStyle: {
-          color: ['rgba(37,99,235,0.04)', 'rgba(31,157,104,0.035)'],
-        },
-      },
-      axisLine: {
-        lineStyle: { color: 'rgba(21,26,36,0.10)' },
-      },
-      splitLine: {
-        lineStyle: { color: 'rgba(21,26,36,0.10)' },
-      },
-    },
-    series: [
-      {
-        type: 'radar',
-        data: [
-          {
-            value: [85, 90, 75, 60, 95],
-            name: '탐험 패턴',
-            areaStyle: { color: 'rgba(37, 99, 235, 0.18)' },
-            lineStyle: { color: '#2563EB', width: 2 },
-            itemStyle: { color: '#2563EB' },
-          },
-        ],
-      },
-    ],
-  };
-
   const membershipLabel = userProfile?.is_pro ? 'Pro 탐험가' : '기본 탐험가';
-  const energy = userProfile?.energy ?? 0;
-  const masterKeys = userProfile?.master_keys ?? 0;
   const discoveryCount = discoveries.length;
   const capsuleCount = myCapsules.length;
+  const promotedCount = myCapsules.filter((capsule) => capsule.is_promoted).length;
+  const totalAccessCount = myCapsules.reduce((sum, capsule) => sum + (capsule.access_count || 0), 0);
   const nextAction = discoveryCount
     ? {
         title: '최근 발견 기록 확인',
@@ -160,24 +115,18 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
       }
     : capsuleCount
       ? {
-          title: '내 아지트 반응 확인',
-          description: `${capsuleCount}개의 아지트가 지도에 남아 있습니다.`,
+          title: '내 캡슐 반응 확인',
+          description: `${capsuleCount}개의 캡슐이 지도에 남아 있습니다.`,
         }
       : {
-          title: '첫 아지트 만들기',
+          title: '첫 캡슐 만들기',
           description: '지도 화면에서 새 좌표를 지정해 시작할 수 있습니다.',
         };
   const heroStats = [
-    { key: 'energy', label: '에너지', value: energy, suffix: '%', icon: FiZap, tone: 'blue' },
-    { key: 'keys', label: '마스터 키', value: masterKeys, suffix: '개', icon: FiCompass, tone: 'gold' },
-    { key: 'discoveries', label: '발견', value: discoveryCount, suffix: '개', icon: FiTarget, tone: 'mint' },
-    { key: 'capsules', label: '내 아지트', value: capsuleCount, suffix: '개', icon: FiMap, tone: 'coral' },
-  ];
-  const analysisStats = [
-    { label: '개척성', val: 85, color: '#2563eb' },
-    { label: '도전성', val: 90, color: '#7457d9' },
-    { label: '희소성', val: 75, color: '#14a0b8' },
-    { label: '야행성', val: 95, color: '#ef8a22' },
+    { key: 'discoveries', label: '발견한 캡슐', value: discoveryCount, suffix: '개', icon: FiTarget, tone: 'mint' },
+    { key: 'capsules', label: '내가 만든 캡슐', value: capsuleCount, suffix: '개', icon: FiMap, tone: 'coral' },
+    { key: 'promoted', label: '공식 추천', value: promotedCount, suffix: '개', icon: FiCompass, tone: 'gold' },
+    { key: 'access', label: '총 열람 수', value: totalAccessCount, suffix: '회', icon: FiActivity, tone: 'blue' },
   ];
 
   return (
@@ -267,9 +216,7 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
                             </Badge>
                           </HStack>
                           <Text color="rgba(255,255,255,0.72)" fontSize="sm" lineHeight="1.6" maxW="520px">
-                            {userProfile?.is_pro
-                              ? `구독 활성화${userProfile?.subscription_end ? ` · ${new Date(userProfile.subscription_end).toLocaleDateString()}까지` : ''}`
-                              : '무료 탐험가 모드로 주변 아지트를 탐색 중입니다.'}
+                            직접 가야 열리는 로컬 캡슐의 발견 기록과 내가 만든 캡슐 반응을 확인합니다.
                           </Text>
                         </Box>
                       </HStack>
@@ -277,15 +224,15 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
                       <Box className="atlas-dashboard-energy" minW={{ base: 'auto', md: '220px' }} p={4}>
                         <Flex justify="space-between" align="center" mb={2}>
                           <Text color="rgba(255,255,255,0.62)" fontSize="xs" fontWeight="800">
-                            현재 에너지
+                            최근 활동
                           </Text>
                           <Icon as={FiActivity} color="#8ff0bd" />
                         </Flex>
                         <Text color="white" fontSize="3xl" fontWeight="800" mb={3}>
-                          {energy}%
+                          {discoveryCount + capsuleCount}
                         </Text>
                         <Progress
-                          value={energy}
+                          value={Math.min((discoveryCount + capsuleCount) * 12, 100)}
                           h="8px"
                           borderRadius="full"
                           bg="rgba(255,255,255,0.16)"
@@ -332,8 +279,9 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
                     <VStack spacing={3} align="stretch">
                       {[
                         ['이용 플랜', membershipLabel],
-                        ['보유 키', `${masterKeys}개`],
-                        ['에너지 상태', `${energy}% 충전`],
+                        ['발견한 캡슐', `${discoveryCount}개`],
+                        ['내가 만든 캡슐', `${capsuleCount}개`],
+                        ['공식 추천 캡슐', `${promotedCount}개`],
                       ].map(([label, value]) => (
                         <Flex key={label} justify="space-between" align="center" className="atlas-dashboard-info-row">
                           <Text color="var(--atlas-muted-text)" fontSize="sm" fontWeight="650">
@@ -388,39 +336,30 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
                   <HStack justify="space-between" mb={5}>
                     <HStack>
                       <Text color="var(--atlas-text)" fontSize="lg" fontWeight="bold">
-                        탐험 성향 분석
+                        활동 요약
                       </Text>
                     </HStack>
                     <Badge px={2.5} py={1} borderRadius="8px" bg="var(--atlas-primary-soft)" color="var(--atlas-primary)" fontWeight="800">
-                      AI Preview
+                      실제 데이터
                     </Badge>
                   </HStack>
 
-                  <Grid templateColumns={{ base: '1fr', md: 'minmax(0, 1fr) 260px' }} gap={5} alignItems="center">
-                    <VStack align="stretch" spacing={3}>
-                      {analysisStats.map((stat) => (
-                        <Box key={stat.label} w="100%">
-                          <Flex justify="space-between" mb={1.5}>
-                            <Text fontSize="xs" color="var(--atlas-muted-text)" fontWeight="750">{stat.label}</Text>
-                            <Text fontSize="xs" color={stat.color} fontWeight="850">{stat.val}%</Text>
-                          </Flex>
-                          <Box h="7px" bg="rgba(21,26,36,0.07)" borderRadius="full" overflow="hidden">
-                            <MotionBox
-                              h="100%"
-                              bg={stat.color}
-                              borderRadius="full"
-                              initial={{ width: 0 }}
-                              animate={{ width: `${stat.val}%` }}
-                              transition={{ delay: 0.4, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                            />
-                          </Box>
-                        </Box>
-                      ))}
-                    </VStack>
-
-                    <Box className="atlas-radar-frame" h={{ base: '220px', md: '240px' }}>
-                      <ReactECharts option={radarOption} style={{ height: '100%', width: '100%' }} />
-                    </Box>
+                  <Grid templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)' }} gap={3}>
+                    {[
+                      ['최근 언락', discoveries[0]?.capsule?.title || '아직 없음'],
+                      ['최근 생성', myCapsules[0]?.title || '아직 없음'],
+                      ['총 열람 수', `${totalAccessCount}회`],
+                      ['공식/일반', `${promotedCount} / ${Math.max(capsuleCount - promotedCount, 0)}`],
+                    ].map(([label, value]) => (
+                      <Box key={label} className="atlas-dashboard-list-row" p={4}>
+                        <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="800" mb={2}>
+                          {label}
+                        </Text>
+                        <Text color="var(--atlas-text)" fontSize="sm" fontWeight="800" noOfLines={2}>
+                          {value}
+                        </Text>
+                      </Box>
+                    ))}
                   </Grid>
                 </MotionBox>
               </GridItem>
@@ -446,10 +385,10 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
                           >
                             <Box minW={0}>
                               <Text color="var(--atlas-text)" fontSize="sm" fontWeight="800" noOfLines={1}>
-                                {item.capsule?.title || '삭제된 아지트'}
+                                {item.capsule?.title || '삭제된 캡슐'}
                               </Text>
                               <Text color="var(--atlas-muted-text)" fontSize="xs" mt={1} noOfLines={1}>
-                                {formatDate(item.created_at)} · {item.capsule?.category || '카테고리 없음'}
+                                {formatDate(item.created_at)} · {getPrimaryCapsuleCategory(item.capsule?.category)}
                               </Text>
                             </Box>
                             <Badge
@@ -483,7 +422,7 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
                           발견 내역이 없습니다.
                         </Text>
                         <Text color="var(--atlas-faint-text)" fontSize="sm">
-                          지도를 탐색해 아지트를 찾아보세요.
+                          지도를 탐색해 로컬 캡슐을 찾아보세요.
                         </Text>
                       </Flex>
                     )}
@@ -492,7 +431,7 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
                   <Box className="atlas-dashboard-card" p={{ base: 5, md: 6 }}>
                     <HStack justify="space-between" mb={4}>
                       <Text color="var(--atlas-text)" fontSize="lg" fontWeight="bold">
-                        내가 만든 아지트
+                        내가 만든 캡슐
                       </Text>
                       <Badge px={2} py={1} borderRadius="8px" bg="var(--atlas-bg)" color="var(--atlas-muted-text)">
                         {myCapsules.length}개
@@ -508,7 +447,7 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
                                   {capsule.title}
                                 </Text>
                                 <Text color="var(--atlas-muted-text)" fontSize="xs" mt={1} noOfLines={1}>
-                                  {capsule.category} · {formatDate(capsule.created_at)}
+                                  {getPrimaryCapsuleCategory(capsule.category)} · {formatDate(capsule.created_at)}
                                 </Text>
                               </Box>
                               <Badge
@@ -531,7 +470,7 @@ export default function ExplorerDashboard({ isOpen, onClose, userProfile }) {
                           <FiTarget size={20} />
                         </Flex>
                         <Text color="var(--atlas-muted-text)" fontSize="sm" fontWeight="650" lineHeight="1.6">
-                          아직 직접 매설한 아지트가 없습니다.
+                          아직 직접 만든 캡슐이 없습니다.
                         </Text>
                       </Flex>
                     )}

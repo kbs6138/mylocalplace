@@ -269,20 +269,13 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
               color="var(--atlas-text)"
               mb={4}
             >
-              {isLogin ? (
-                <>
-                  <span className="gradient-text">내 동네 좌표</span>를<br />다시 열어보세요.
-                </>
-              ) : (
-                <>
-                  나만의 <span className="gradient-text">비밀 장소</span>를<br />남겨보세요.
-                </>
-              )}
+              직접 가야 열리는<br />
+              <span className="gradient-text">로컬 캡슐 지도</span>
             </Text>
             <MotionText color="var(--atlas-muted-text)" fontSize="lg" fontWeight="500" lineHeight="1.7">
-              {isLogin
-                ? '저장한 장소와 발견 기록을 이어서 확인하세요.'
-                : '실제 위치에 닿았을 때만 열리는 로컬 캡슐을 만듭니다.'}
+              근처에 숨겨진 장소 힌트를 보고, 실제 위치에서 인증하면 숨겨진 메시지가 열립니다.
+              <br />
+              지도에 숨은 동네 캡슐을 찾아보세요.
             </MotionText>
           </MotionBox>
         </AnimatePresence>
@@ -368,9 +361,10 @@ export default function AuthOverlay({ isReady, onAuthSuccess }) {
                 boxShadow="0 8px 30px rgba(49, 130, 246, 0.35), 0 2px 8px rgba(49, 130, 246, 0.2)"
                 transition="all 0.2s cubic-bezier(0, 0, 0.2, 1)"
               >
-                {isLogin ? '다음' : '탐험 시작하기'}
+                {isLogin ? '탐험 시작' : '탐험 시작'}
               </Button>
             </Box>
+            {/* TODO: 비로그인 지도 권한 정책이 정리되면 둘러보기 모드 버튼을 노출합니다. */}
           </VStack>
         </form>
       </Box>

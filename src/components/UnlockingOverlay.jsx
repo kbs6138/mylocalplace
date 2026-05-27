@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, Flex, HStack, Icon, Text, useToast } from '@chakra-ui/react';
-import { FiCheckCircle, FiLock } from 'react-icons/fi';
+import { FiCheckCircle, FiCopy, FiLock } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { verifyAndUnlock } from '../supabaseClient';
 
@@ -101,7 +101,7 @@ export default function UnlockingOverlay({ isVisible, capsule, userLocation, onC
 
   const handleUnlock = async () => {
     if (!capsule?.id) {
-      setUnlockError('선택한 아지트 정보가 올바르지 않습니다.');
+      setUnlockError('선택한 캡슐 정보가 올바르지 않습니다.');
       return;
     }
 
@@ -129,7 +129,7 @@ export default function UnlockingOverlay({ isVisible, capsule, userLocation, onC
       ]);
 
       if (!result?.ok) {
-        const message = result?.message || '아지트를 열 수 없습니다.';
+        const message = result?.message || '캡슐을 열 수 없습니다.';
         setUnlockError(message);
         toast({
           title: '잠금 해제 실패',
@@ -155,6 +155,36 @@ export default function UnlockingOverlay({ isVisible, capsule, userLocation, onC
       });
     } finally {
       setIsHacking(false);
+    }
+  };
+
+  const handleCopyShareText = async () => {
+    const shareText = [
+      'LOCAL ATLAS에서 로컬 캡슐을 발견했습니다.',
+      '직접 가야 열리는 숨은 장소 캡슐을 열어보세요.',
+      `캡슐: ${capsule.title}`,
+      `발견 순위: ${rank}번째 탐험가`,
+    ].join('\n');
+
+    // 좌표와 숨겨진 메시지는 공유하지 않고, 클립보드 미지원 환경은 toast로 안내합니다.
+    try {
+      if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+        throw new Error('클립보드를 사용할 수 없는 환경입니다.');
+      }
+
+      await navigator.clipboard.writeText(shareText);
+      toast({
+        title: '공유 문구를 복사했습니다.',
+        status: 'success',
+        duration: 2200,
+      });
+    } catch (err) {
+      toast({
+        title: '공유 문구를 복사하지 못했습니다.',
+        description: err?.message || '브라우저 권한을 확인해주세요.',
+        status: 'warning',
+        duration: 3000,
+      });
     }
   };
 
@@ -305,10 +335,13 @@ export default function UnlockingOverlay({ isVisible, capsule, userLocation, onC
                 transition={{ delay: 0.3 }}
               >
                 <Text color="var(--atlas-primary)" fontSize="xs" fontWeight="800" letterSpacing="0" mb={2}>
-                  인증 완료
+                  발견 완료
                 </Text>
-                <Text color="var(--atlas-text)" fontSize="2xl" fontWeight="800" mb={3}>
-                  숨겨진 메시지
+                <Text color="var(--atlas-text)" fontSize="2xl" fontWeight="800" mb={1}>
+                  {capsule.title}
+                </Text>
+                <Text color="var(--atlas-muted-text)" fontSize="sm" fontWeight="700" mb={4}>
+                  숨겨진 메시지가 열렸습니다.
                 </Text>
                 <Box
                   bg="var(--atlas-primary-soft)"
@@ -317,7 +350,7 @@ export default function UnlockingOverlay({ isVisible, capsule, userLocation, onC
                   mb={6}
                 >
                   <Text color="var(--atlas-primary)" fontSize="md" fontWeight="600" lineHeight="1.7">
-                    {unlockResult?.hint || capsule.hint || '이곳에 도착한 탐험가님을 진심으로 환영합니다.'}
+                    {unlockResult?.hint || '이곳에 도착한 탐험가님을 진심으로 환영합니다.'}
                   </Text>
                 </Box>
                 <Box w="100%" h="1px" bg="var(--atlas-divider)" mb={5} />
@@ -326,11 +359,26 @@ export default function UnlockingOverlay({ isVisible, capsule, userLocation, onC
                   <Text color="var(--atlas-text)" fontWeight="700">{rank}번째</Text>
                 </Flex>
                 <Flex justify="space-between" align="center" mb={7}>
-                  <Text color="var(--atlas-muted-text)" fontSize="sm">매설자와의 거리</Text>
+                  <Text color="var(--atlas-muted-text)" fontSize="sm">인증 거리</Text>
                   <Text color="var(--atlas-text)" fontWeight="700">
                     {formatDistance(unlockResult?.distance_meters ?? distance)}
                   </Text>
                 </Flex>
+                <Button
+                  w="100%"
+                  h="50px"
+                  borderRadius="16px"
+                  fontSize="md"
+                  fontWeight="700"
+                  leftIcon={<Icon as={FiCopy} />}
+                  bg="var(--atlas-bg)"
+                  color="var(--atlas-text)"
+                  onClick={handleCopyShareText}
+                  _hover={{ bg: 'var(--atlas-muted-bg)' }}
+                  mb={3}
+                >
+                  공유 문구 복사
+                </Button>
                 <Button
                   className="atlas-blue-button"
                   w="100%"

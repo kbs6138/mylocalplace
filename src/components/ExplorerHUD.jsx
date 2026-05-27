@@ -1,17 +1,20 @@
-import { useMemo } from 'react';
-import { Badge, Box, Button, Flex, HStack, Icon, Progress, Text, VStack } from '@chakra-ui/react';
+import { useMemo, useState } from 'react';
+import { Badge, Box, Button, Flex, Grid, HStack, Icon, Input, Text, VStack } from '@chakra-ui/react';
 import {
   FiAlertTriangle,
+  FiCheck,
   FiChevronDown,
   FiChevronRight,
   FiChevronUp,
   FiCompass,
+  FiEdit3,
   FiLock,
   FiMapPin,
   FiNavigation,
-  FiZap,
+  FiX,
 } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
+import { CAPSULE_CATEGORY_OPTIONS, getPrimaryCapsuleCategory } from '../utils/capsuleCategories';
 
 const MotionBox = motion.create(Box);
 
@@ -36,9 +39,9 @@ export default function ExplorerHUD({
   visibleCapsuleCount,
   activeRegionLabel,
   onDashboardOpen,
-  onShopOpen,
   onUnlockOpen,
   onReportCapsule,
+  onUpdateCapsule,
   isSheetCollapsed,
   onSheetToggle,
 }) {
@@ -57,14 +60,37 @@ export default function ExplorerHUD({
     return distance < 1 ? `${(distance * 1000).toFixed(0)}m` : `${distance.toFixed(1)}km`;
   }, [userLocation, targetCapsule]);
 
-  const energy = userProfile?.energy ?? 0;
-  const masterKeys = userProfile?.master_keys ?? 0;
   const explorerName = userProfile?.nickname || 'Explorer';
-  const targetCategory = targetCapsule?.category?.split(',')?.[0] || '아지트';
+  const targetCategory = getPrimaryCapsuleCategory(targetCapsule?.category);
   const unlockRadius = targetCapsule?.unlock_radius_meters || 50;
   const accessLimit = targetCapsule?.access_limit || 0;
   const accessCount = targetCapsule?.access_count || 0;
+  const remainingAccess = Math.max(accessLimit - accessCount, 0);
+  const createdAtLabel = targetCapsule?.created_at
+    ? new Date(targetCapsule.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+    : null;
   const hasTarget = Boolean(targetCapsule);
+  const isOwner = Boolean(targetCapsule?.user_id && userProfile?.id && targetCapsule.user_id === userProfile.id);
+  const [editingCapsuleId, setEditingCapsuleId] = useState(null);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftCategory, setDraftCategory] = useState(CAPSULE_CATEGORY_OPTIONS[0]);
+  const [isSaving, setIsSaving] = useState(false);
+  const isEditing = Boolean(targetCapsule?.id && editingCapsuleId === targetCapsule.id);
+
+  const handleSaveEdit = async () => {
+    if (!targetCapsule || !onUpdateCapsule) return;
+
+    setIsSaving(true);
+    const ok = await onUpdateCapsule(targetCapsule.id, {
+      title: draftTitle.trim(),
+      category: draftCategory,
+    });
+    setIsSaving(false);
+
+    if (ok) {
+      setEditingCapsuleId(null);
+    }
+  };
 
   return (
     <Box position="absolute" inset={0} pointerEvents="none" zIndex={5}>
@@ -116,106 +142,26 @@ export default function ExplorerHUD({
                   </Text>
                 </Box>
               </HStack>
-              <HStack spacing={2} flexShrink={0}>
-                <Badge
-                  px={2.5}
-                  py={1.5}
-                  borderRadius="8px"
-                  bg={userProfile?.is_pro ? 'var(--atlas-coral-soft)' : 'var(--atlas-primary-soft)'}
-                  color={userProfile?.is_pro ? 'var(--atlas-coral)' : 'var(--atlas-primary)'}
-                  border="none"
-                  fontWeight="800"
-                >
-                  {userProfile?.is_pro ? 'PRO' : 'FREE'}
-                </Badge>
-                <Flex className="atlas-entry-arrow" align="center" justify="center" aria-hidden="true">
-                  <FiChevronRight size={16} />
-                </Flex>
-              </HStack>
+              <Flex className="atlas-entry-arrow" align="center" justify="center" aria-hidden="true" flexShrink={0}>
+                <FiChevronRight size={16} />
+              </Flex>
             </HStack>
 
-            <VStack spacing={4} align="stretch">
-              <Box
-                className="atlas-entry-energy"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onShopOpen();
-                }}
-                cursor="pointer"
-                transition="all 0.2s"
-                _active={{ transform: 'scale(0.98)' }}
-              >
-                <HStack justify="space-between" mb={2}>
-                  <HStack>
-                     <Text color="var(--atlas-muted-text)" fontSize="sm" fontWeight="600">
-                       에너지
-                     </Text>
-                     <Text color="var(--atlas-text)" fontSize="sm" fontWeight="700">
-                       {energy}%
-                     </Text>
-                  </HStack>
-                  <Text color="var(--atlas-primary)" fontSize="sm" fontWeight="800" bg="var(--atlas-primary-soft)" px={2} py={0.5} borderRadius="8px">
-                    충전
+            <Box className="atlas-stat-tile" p={4}>
+              <HStack justify="space-between" align="center">
+                <Box>
+                  <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="700">
+                    표시 중인 캡슐
                   </Text>
-                </HStack>
-                <Progress
-                  value={energy}
-                  h="8px"
-                  borderRadius="full"
-                  bg="var(--atlas-muted-bg)"
-                  colorScheme="blue"
-                  sx={{
-                    '& > div': {
-                      backgroundColor: 'var(--atlas-primary)',
-                    },
-                  }}
-                />
-              </Box>
-
-              <Flex gap={3}>
-                <Box
-                  className="atlas-stat-tile"
-                  flex="1"
-                  p={4}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onShopOpen();
-                  }}
-                  cursor="pointer"
-                  _active={{ transform: 'scale(0.96)' }}
-                  transition="transform 0.1s"
-                >
-                  <HStack justify="space-between" align="center" mb={2}>
-                    <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="600">
-                      마스터 키
-                    </Text>
-                    <Flex className="atlas-entry-mini-icon atlas-entry-mini-icon-gold" align="center" justify="center">
-                      <Icon as={FiZap} w={3.5} h={3.5} />
-                    </Flex>
-                  </HStack>
-                  <Text color="var(--atlas-text)" fontSize="xl" fontWeight="700">
-                    {masterKeys}
+                  <Text color="var(--atlas-text)" fontSize="xl" fontWeight="800" mt={1}>
+                    {visibleCapsuleCount}개
                   </Text>
                 </Box>
-                <Box
-                  className="atlas-stat-tile"
-                  flex="1"
-                  p={4}
-                >
-                  <HStack justify="space-between" align="center" mb={2}>
-                    <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="600">
-                      표시 중
-                    </Text>
-                    <Flex className="atlas-entry-mini-icon atlas-entry-mini-icon-blue" align="center" justify="center">
-                      <Icon as={FiCompass} w={3.5} h={3.5} />
-                    </Flex>
-                  </HStack>
-                  <Text color="var(--atlas-text)" fontSize="xl" fontWeight="700">
-                    {visibleCapsuleCount}
-                  </Text>
-                </Box>
-              </Flex>
-            </VStack>
+                <Flex className="atlas-entry-mini-icon atlas-entry-mini-icon-blue" align="center" justify="center">
+                  <Icon as={FiCompass} w={3.5} h={3.5} />
+                </Flex>
+              </HStack>
+            </Box>
           </Box>
         </VStack>
       </Box>
@@ -228,27 +174,30 @@ export default function ExplorerHUD({
             : { y: 0, opacity: 1 }
           }
           transition={{ type: 'spring', damping: 28, stiffness: 240 }}
-          w={{ base: '100%', md: '480px' }}
-          mx={{ base: 0, md: 'auto' }}
-          mb={{ base: 0, md: 6 }}
-          p={isSheetCollapsed ? 3 : 6}
-          pb={isSheetCollapsed ? 3 : { base: "calc(env(safe-area-inset-bottom) + 90px)", md: 6 }}
-          borderTopRadius="18px"
-          borderBottomRadius={{ base: "0", md: "18px" }}
+          w={isSheetCollapsed ? { base: '100%', md: '480px' } : { base: 'calc(100% - 56px)', md: '480px' }}
+          maxW={isSheetCollapsed ? { base: '100%', md: '480px' } : { base: '400px', md: '480px' }}
+          mx="auto"
+          mb={isSheetCollapsed ? { base: 0, md: 6 } : { base: '10px', md: 6 }}
+          p={isSheetCollapsed ? 3 : { base: 3, md: 6 }}
+          pb={isSheetCollapsed ? 3 : { base: "calc(env(safe-area-inset-bottom) + 12px)", md: 6 }}
+          h="auto"
+          maxH={isSheetCollapsed ? 'none' : { base: '56svh', md: '72vh' }}
+          borderRadius={isSheetCollapsed ? { base: '18px 18px 0 0', md: '18px' } : '18px'}
           className="atlas-bottom-sheet"
           bg="rgba(255, 255, 255, 0.94)"
           backdropFilter="blur(22px)"
           boxShadow="var(--atlas-shadow)"
           borderTop="1px solid rgba(255, 255, 255, 0.6)"
           position="relative"
-          overflow="hidden"
+          overflowY={isSheetCollapsed ? 'hidden' : 'auto'}
+          sx={{ overscrollBehavior: 'contain', '&::-webkit-scrollbar': { display: 'none' } }}
           pointerEvents="auto"
         >
           <Button
             w="100%"
-            h="32px"
-            minH="32px"
-            mb={isSheetCollapsed ? 0 : 5}
+            h={isSheetCollapsed ? '32px' : '22px'}
+            minH={isSheetCollapsed ? '32px' : '22px'}
+            mb={isSheetCollapsed ? 0 : 3}
             px={2}
             variant="ghost"
             color="var(--atlas-muted-text)"
@@ -294,13 +243,13 @@ export default function ExplorerHUD({
                 transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
               >
                 {hasTarget ? (
-              <VStack align="stretch" spacing={5}>
-                <HStack justify="space-between" align="start" spacing={3}>
-                  <HStack align="start" spacing={3} minW={0}>
+              <VStack align="stretch" spacing={{ base: 2.5, md: 3 }}>
+                <HStack justify="space-between" align="start" spacing={2.5}>
+                  <HStack align="start" spacing={2.5} minW={0}>
                     <Flex
                       className="atlas-target-compass"
-                      w="46px"
-                      h="46px"
+                      w={{ base: '40px', md: '42px' }}
+                      h={{ base: '40px', md: '42px' }}
                       align="center"
                       justify="center"
                       borderRadius="14px"
@@ -309,84 +258,244 @@ export default function ExplorerHUD({
                       <Icon as={FiCompass} color="var(--atlas-primary)" w={5} h={5} />
                     </Flex>
                     <Box minW={0}>
-                      <Text color="var(--atlas-primary)" fontSize="xs" fontWeight="800">
-                        TARGET LOCKED
-                      </Text>
-                      <Text color="var(--atlas-text)" fontSize="2xl" fontWeight="800" mt={1} noOfLines={2}>
-                        {targetCapsule.title}
-                      </Text>
+                      <HStack spacing={1.5} mb={1} flexWrap="wrap">
+                        {targetCapsule.is_promoted && (
+                          <Badge bg="var(--atlas-gold-soft)" color="var(--atlas-gold)" borderRadius="8px" px={2} py={1}>
+                            공식 추천 캡슐
+                          </Badge>
+                        )}
+                        <Badge bg="var(--atlas-primary-soft)" color="var(--atlas-primary)" borderRadius="8px" px={2} py={1}>
+                          {targetCategory}
+                        </Badge>
+                      </HStack>
+                      {isEditing ? (
+                        <Input
+                          value={draftTitle}
+                          onChange={(event) => setDraftTitle(event.target.value)}
+                          h="44px"
+                          mt={2}
+                          bg="white"
+                          borderColor="gray.200"
+                          borderRadius="12px"
+                          fontWeight="800"
+                          _focus={{ borderColor: 'var(--atlas-primary)', boxShadow: '0 0 0 3px rgba(37,99,235,0.14)' }}
+                        />
+                      ) : (
+                        <Text color="var(--atlas-text)" fontSize={{ base: 'xl', md: '2xl' }} fontWeight="800" mt={1} noOfLines={2}>
+                          {targetCapsule.title}
+                        </Text>
+                      )}
                     </Box>
                   </HStack>
-                  <Badge
-                    px={3}
-                    py={1.5}
-                    borderRadius="8px"
-                    bg="var(--atlas-primary-soft)"
-                    color="var(--atlas-primary)"
-                    border="none"
-                    fontSize="sm"
-                    fontWeight="600"
-                  >
-                    {distanceToTarget || '위치 확인 중'}
-                  </Badge>
+                  <VStack spacing={1.5} align="end" flexShrink={0}>
+                    <Badge
+                      px={3}
+                      py={1.5}
+                      borderRadius="8px"
+                      bg="var(--atlas-primary-soft)"
+                      color="var(--atlas-primary)"
+                      border="none"
+                      fontSize={{ base: 'xs', md: 'sm' }}
+                      fontWeight="600"
+                    >
+                      {distanceToTarget || '위치 권한 필요'}
+                    </Badge>
+                    <HStack spacing={1.5}>
+                    {isOwner && !isEditing && (
+                      <Button
+                        w="36px"
+                        h="36px"
+                        minW="36px"
+                        p={0}
+                        bg="var(--atlas-bg)"
+                        color="var(--atlas-text)"
+                        borderRadius="12px"
+                        aria-label="이름/카테고리 수정"
+                        onClick={() => {
+                          // 수정 버튼을 누르는 순간 현재 캡슐 공개 정보를 폼에 복사합니다.
+                          setDraftTitle(targetCapsule.title || '');
+                          setDraftCategory(targetCategory);
+                          setEditingCapsuleId(targetCapsule.id);
+                        }}
+                        _hover={{ bg: 'var(--atlas-muted-bg)' }}
+                      >
+                        <Icon as={FiEdit3} w={4} h={4} />
+                      </Button>
+                    )}
+                    <Button
+                      w="36px"
+                      h="36px"
+                      minW="36px"
+                      p={0}
+                      bg="var(--atlas-bg)"
+                      color="var(--atlas-muted-text)"
+                      borderRadius="12px"
+                      aria-label="장소 신고하기"
+                      onClick={onReportCapsule}
+                      _hover={{ bg: 'var(--atlas-danger-soft)', color: 'var(--atlas-danger)' }}
+                    >
+                      <Icon as={FiAlertTriangle} w={4} h={4} />
+                    </Button>
+                    </HStack>
+                  </VStack>
                 </HStack>
 
-                <Text color="var(--atlas-muted-text)" fontSize="sm" lineHeight="1.6">
-                  {targetCategory} · 반경 {unlockRadius}m · 현장 인증 필요
+                <Text color="var(--atlas-muted-text)" fontSize="sm" lineHeight="1.5">
+                  도착하면 숨겨진 메시지가 열립니다.
                 </Text>
 
-                <Flex gap={2} wrap="wrap">
-                  <Badge className="atlas-quiet-badge" px={3} py={1.5} borderRadius="8px" border="none" fontWeight="600">
-                    난이도 Lv.{targetCapsule.difficulty || 3}
-                  </Badge>
+                {isEditing && (
+                  <Box className="atlas-stat-tile" p={3}>
+                    <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="800" mb={2}>
+                      카테고리 수정
+                    </Text>
+                    <Flex gap={2} overflowX="auto" css={{ '&::-webkit-scrollbar': { display: 'none' } }}>
+                      {CAPSULE_CATEGORY_OPTIONS.map((category) => {
+                        const selected = draftCategory === category;
+
+                        return (
+                          <Button
+                            key={category}
+                            h="34px"
+                            px={3}
+                            flexShrink={0}
+                            borderRadius="10px"
+                            bg={selected ? 'var(--atlas-primary)' : 'white'}
+                            color={selected ? 'white' : 'var(--atlas-text)'}
+                            border="1px solid"
+                            borderColor={selected ? 'var(--atlas-primary)' : 'gray.200'}
+                            fontSize="sm"
+                            onClick={() => setDraftCategory(category)}
+                            _hover={{ bg: selected ? 'var(--atlas-primary-hover)' : 'gray.50' }}
+                          >
+                            {category}
+                          </Button>
+                        );
+                      })}
+                    </Flex>
+                  </Box>
+                )}
+
+                {!userLocation && (
+                  <Box bg="var(--atlas-gold-soft)" borderRadius="14px" px={4} py={3}>
+                    <Text color="var(--atlas-gold)" fontSize="sm" fontWeight="700" lineHeight="1.5">
+                      위치 권한이 필요합니다. 기본 탐색은 가능하지만 현장 인증은 현재 위치가 있어야 진행됩니다.
+                    </Text>
+                  </Box>
+                )}
+
+                <Grid templateColumns="repeat(2, 1fr)" gap={2}>
+                  {[
+                    ['현재 거리', distanceToTarget || '위치 필요'],
+                    ['언락 반경', `${unlockRadius}m`],
+                    ['탐험 난이도', `Lv.${targetCapsule.difficulty || 3}`],
+                    ['남은 열람', `${remainingAccess}명`],
+                  ].map(([label, value]) => (
+                    <Box key={label} className="atlas-stat-tile" p={{ base: 2.25, md: 3 }}>
+                      <Text color="var(--atlas-muted-text)" fontSize="xs" fontWeight="700" mb={1}>
+                        {label}
+                      </Text>
+                      <Text color="var(--atlas-text)" fontSize="sm" fontWeight="800" lineHeight="1.25">
+                        {value}
+                      </Text>
+                    </Box>
+                  ))}
+                </Grid>
+
+                <HStack spacing={2} flexWrap="wrap">
                   <Badge className="atlas-quiet-badge" px={3} py={1.5} borderRadius="8px" border="none" fontWeight="600">
                     열람 {accessCount}/{accessLimit}
                   </Badge>
-                </Flex>
+                  {createdAtLabel && (
+                    <Badge className="atlas-quiet-badge" px={3} py={1.5} borderRadius="8px" border="none" fontWeight="600">
+                      생성 {createdAtLabel}
+                    </Badge>
+                  )}
+                </HStack>
 
                 <Button
                   className="atlas-blue-button"
-                  h="56px"
+                  h={{ base: '48px', md: '56px' }}
                   borderRadius="16px"
-                  fontSize="17px"
-                  fontWeight="600"
+                  fontSize="16px"
+                  fontWeight="700"
                   leftIcon={<Icon as={FiLock} />}
                   onClick={onUnlockOpen}
                   _hover={{ bg: 'var(--atlas-primary-hover)', transform: 'translateY(-1px)' }}
                 >
-                  현장에서 열어보기
+                  현장 인증하기
                 </Button>
 
-                <Button
-                  as="a"
-                  href={`https://map.kakao.com/link/to/${targetCapsule.title},${targetCapsule.lat},${targetCapsule.lng}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  h="48px"
-                  bg="var(--atlas-bg)"
-                  color="var(--atlas-text)"
-                  borderRadius="16px"
-                  fontSize="15px"
-                  fontWeight="600"
-                  leftIcon={<Icon as={FiNavigation} />}
-                  _hover={{ bg: 'var(--atlas-muted-bg)' }}
-                >
-                  카카오맵 길찾기
-                </Button>
+                {isOwner && (
+                  isEditing ? (
+                    <HStack spacing={2}>
+                      <Button
+                        flex="1"
+                        h="44px"
+                        borderRadius="14px"
+                        leftIcon={<Icon as={FiCheck} />}
+                        bg="var(--atlas-text)"
+                        color="white"
+                        isLoading={isSaving}
+                        onClick={handleSaveEdit}
+                        _hover={{ bg: 'var(--atlas-text-subtle)' }}
+                      >
+                        수정 저장
+                      </Button>
+                      <Button
+                        h="44px"
+                        px={4}
+                        borderRadius="14px"
+                        leftIcon={<Icon as={FiX} />}
+                        bg="var(--atlas-bg)"
+                        color="var(--atlas-muted-text)"
+                        onClick={() => {
+                          setDraftTitle(targetCapsule.title || '');
+                          setDraftCategory(targetCategory);
+                          setEditingCapsuleId(null);
+                        }}
+                        _hover={{ bg: 'var(--atlas-muted-bg)' }}
+                      >
+                        취소
+                      </Button>
+                    </HStack>
+                  ) : null
+                )}
 
-                <Button
-                  h="42px"
-                  bg="transparent"
-                  color="var(--atlas-muted-text)"
-                  borderRadius="14px"
-                  fontSize="14px"
-                  fontWeight="600"
-                  leftIcon={<Icon as={FiAlertTriangle} />}
-                  onClick={onReportCapsule}
-                  _hover={{ bg: 'var(--atlas-danger-soft)', color: 'var(--atlas-danger)' }}
-                >
-                  장소 신고하기
-                </Button>
+                <HStack spacing={2}>
+                  <Button
+                    as="a"
+                    flex="1"
+                    href={`https://map.kakao.com/link/to/${targetCapsule.title},${targetCapsule.lat},${targetCapsule.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    h="40px"
+                    bg="var(--atlas-bg)"
+                    color="var(--atlas-text)"
+                    borderRadius="14px"
+                    fontSize="13px"
+                    fontWeight="700"
+                    leftIcon={<Icon as={FiNavigation} />}
+                    _hover={{ bg: 'var(--atlas-muted-bg)' }}
+                  >
+                    길찾기
+                  </Button>
+
+                  <Button
+                    flex="1"
+                    h="40px"
+                    bg="transparent"
+                    color="var(--atlas-muted-text)"
+                    borderRadius="14px"
+                    fontSize="13px"
+                    fontWeight="700"
+                    leftIcon={<Icon as={FiAlertTriangle} />}
+                    onClick={onReportCapsule}
+                    _hover={{ bg: 'var(--atlas-danger-soft)', color: 'var(--atlas-danger)' }}
+                  >
+                    신고
+                  </Button>
+                </HStack>
               </VStack>
             ) : (
               <VStack align="stretch" spacing={4}>
@@ -397,7 +506,7 @@ export default function ExplorerHUD({
                   지도에서 마커를 눌러보세요
                 </Text>
                 <Text color="var(--atlas-muted-text)" fontSize="sm" lineHeight="1.6">
-                  숨겨진 아지트를 선택하면 상세한 정보와 길찾기를 이용할 수 있습니다.
+                  숨겨진 로컬 캡슐을 선택하면 거리, 인증 반경, 남은 열람 수를 확인할 수 있습니다.
                 </Text>
                 <HStack spacing={2} flexWrap="wrap" mt={2}>
                   <Badge className="atlas-quiet-badge" px={3} py={1.5} borderRadius="8px" border="none" fontWeight="600">
