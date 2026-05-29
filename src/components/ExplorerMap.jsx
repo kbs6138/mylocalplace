@@ -59,6 +59,85 @@ const CAPSULE_LIST_FIELDS = [
   'is_promoted',
   'created_at',
 ].join(',');
+const GEOLOCATION_OPTIONS = { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 };
+const LOCATION_ERROR_TOAST_ID = 'location-error';
+const IP_LOCATION_TIMEOUT_MS = 6000;
+
+function isGeolocationAvailable() {
+  return typeof navigator !== 'undefined' && 'geolocation' in navigator;
+}
+
+function getGeolocationErrorMessage(error) {
+  if (!isGeolocationAvailable()) {
+    return {
+      title: '위치 기능을 사용할 수 없습니다.',
+      description: 'HTTPS 환경이나 Android 앱에서 다시 시도해주세요.',
+    };
+  }
+
+  if (error?.code === error?.PERMISSION_DENIED) {
+    return {
+      title: '위치 권한이 꺼져 있습니다.',
+      description: '브라우저나 앱 설정에서 위치 권한을 허용한 뒤 다시 눌러주세요.',
+    };
+  }
+
+  if (error?.code === error?.TIMEOUT) {
+    return {
+      title: '위치 신호를 찾지 못했습니다.',
+      description: '기기의 위치 서비스가 켜져 있는지 확인하고 잠시 후 다시 시도해주세요.',
+    };
+  }
+
+  return {
+    title: '위치 정보를 가져올 수 없습니다.',
+    description: '기기의 위치 서비스가 켜져 있는지 확인한 뒤 다시 시도해주세요.',
+  };
+}
+
+async function fetchIpJson(url) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), IP_LOCATION_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (ipError) {
+    console.error('IP location lookup error:', ipError);
+    return null;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function getIpLocationEstimate() {
+  const ipApiResult = await fetchIpJson('https://ipapi.co/json/');
+  const ipApiLatitude = Number(ipApiResult?.latitude);
+  const ipApiLongitude = Number(ipApiResult?.longitude);
+
+  if (Number.isFinite(ipApiLatitude) && Number.isFinite(ipApiLongitude)) {
+    return {
+      latitude: ipApiLatitude,
+      longitude: ipApiLongitude,
+      label: ipApiResult.city || ipApiResult.region || 'IP 기반 위치',
+    };
+  }
+
+  const ipWhoisResult = await fetchIpJson('https://ipwho.is/');
+  const ipWhoisLatitude = Number(ipWhoisResult?.latitude);
+  const ipWhoisLongitude = Number(ipWhoisResult?.longitude);
+
+  if (ipWhoisResult?.success !== false && Number.isFinite(ipWhoisLatitude) && Number.isFinite(ipWhoisLongitude)) {
+    return {
+      latitude: ipWhoisLatitude,
+      longitude: ipWhoisLongitude,
+      label: ipWhoisResult.city || ipWhoisResult.region || 'IP 기반 위치',
+    };
+  }
+
+  return null;
+}
 
 function withCapsuleDefaults(capsule) {
   return {
@@ -131,6 +210,15 @@ function getRegionPath(addressName, byAddress) {
   return path;
 }
 
+function getCompactRegionLabel(addressName) {
+  if (!addressName) return '동네';
+
+  const parts = addressName.split(/\s+/).filter(Boolean);
+  if (parts.length >= 4) return parts.slice(-2).join(' ');
+  if (parts.length >= 2) return parts.slice(-2).join(' ');
+  return addressName;
+}
+
 function getRegionColumnLabel(options, level) {
   if (level === 0) return '시/도';
   if (options.some((option) => /[시군구]$/.test(option.name))) return '시/군/구';
@@ -145,9 +233,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
   });
   const toast = useToast();
 
-  const [isLocating, setIsLocating] = useState(
-    () => typeof navigator !== 'undefined' && 'geolocation' in navigator,
-  );
+  const [isLocating, setIsLocating] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [targetCapsule, setTargetCapsule] = useState(null);
   const [isHudSheetCollapsed, setIsHudSheetCollapsed] = useState(true);
@@ -155,6 +241,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
   const [allCapsules, setAllCapsules] = useState([]);
   const [isCapsuleLoading, setIsCapsuleLoading] = useState(true);
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+  const [isLocationWatchActive, setIsLocationWatchActive] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState(['전체']);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isPlantingOpen, setIsPlantingOpen] = useState(false);
@@ -569,54 +656,130 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
     setIsRegionOpen(false);
   };
 
+  const applyUserPosition = useCallback(
+    (position, options = {}) => {
+      const coords = {
+        longitude: position.coords.longitude,
+        latitude: position.coords.latitude,
+        source: 'gps',
+      };
+
+      setUserLocation(coords);
+      setLocationPermissionDenied(false);
+      setIsLocationWatchActive(true);
+
+      if (options.centerMap) {
+        glideTo(coords, 4);
+      }
+
+      maybeRefreshCurrentRegion(coords, Boolean(options.syncRegion));
+      return coords;
+    },
+    [glideTo, maybeRefreshCurrentRegion],
+  );
+
+  const moveToIpLocationEstimate = useCallback(async () => {
+    const estimatedLocation = await getIpLocationEstimate();
+    if (!estimatedLocation) return false;
+
+    const coords = {
+      longitude: estimatedLocation.longitude,
+      latitude: estimatedLocation.latitude,
+      source: 'ip',
+    };
+
+    setUserLocation(coords);
+    setIsLocationWatchActive(false);
+    glideTo(coords, 4);
+    maybeRefreshCurrentRegion(coords, true);
+    setTargetCapsule(null);
+    setIsHudSheetCollapsed(true);
+    setIsRegionOpen(false);
+    setSearchResults([]);
+    setIsActionMenuOpen(false);
+
+    toast({
+      title: 'IP 기반 대략 위치로 이동했습니다.',
+      description: `${estimatedLocation.label} 근처로 지도를 맞췄습니다. 현장 인증에는 GPS 위치 권한이 필요합니다.`,
+      status: 'info',
+      duration: 3600,
+      isClosable: true,
+    });
+
+    return true;
+  }, [glideTo, maybeRefreshCurrentRegion, toast]);
+
   useEffect(() => {
-    if (loading || error || !('geolocation' in navigator)) {
+    if (loading || error || !isGeolocationAvailable() || !navigator.permissions?.query) {
       return undefined;
     }
 
-    let watchId;
+    let isMounted = true;
 
-    navigator.geolocation.getCurrentPosition(
+    void navigator.permissions.query({ name: 'geolocation' }).then((permission) => {
+      if (!isMounted || permission.state !== 'granted') return;
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if (!isMounted) return;
+          applyUserPosition(position, { centerMap: true, syncRegion: true });
+        },
+        (geoError) => {
+          console.error('Location error:', geoError);
+          if (geoError?.code === geoError?.PERMISSION_DENIED) {
+            setLocationPermissionDenied(true);
+          }
+        },
+        GEOLOCATION_OPTIONS,
+      );
+    }).catch((geoError) => {
+      console.error('Location permission query error:', geoError);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [loading, error, applyUserPosition]);
+
+  useEffect(() => {
+    if (loading || error || !isLocationWatchActive || !isGeolocationAvailable()) {
+      return undefined;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
       (position) => {
-        const coords = {
-          longitude: position.coords.longitude,
-          latitude: position.coords.latitude,
-        };
-        setUserLocation(coords);
-        setLocationPermissionDenied(false);
-        glideTo(coords, 4);
-        maybeRefreshCurrentRegion(coords, true);
-        setIsLocating(false);
+        applyUserPosition(position);
       },
       (geoError) => {
-        console.error('Location error:', geoError);
-        setLocationPermissionDenied(geoError?.code === geoError?.PERMISSION_DENIED);
-        setIsLocating(false);
+        console.error('Watch position error:', geoError);
+        if (geoError?.code === geoError?.PERMISSION_DENIED) {
+          setLocationPermissionDenied(true);
+          setIsLocationWatchActive(false);
+        }
       },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
-    );
-
-    watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const coords = {
-          longitude: position.coords.longitude,
-          latitude: position.coords.latitude,
-        };
-
-        setUserLocation(coords);
-        setLocationPermissionDenied(false);
-        maybeRefreshCurrentRegion(coords);
-      },
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 0 },
+      GEOLOCATION_OPTIONS,
     );
 
     return () => {
-      if (watchId !== undefined) {
-        navigator.geolocation.clearWatch(watchId);
-      }
+      navigator.geolocation.clearWatch(watchId);
     };
-  }, [loading, error, glideTo, maybeRefreshCurrentRegion]);
+  }, [loading, error, isLocationWatchActive, applyUserPosition]);
+
+  const showLocationErrorToast = useCallback(
+    (geoError) => {
+      const message = getGeolocationErrorMessage(geoError);
+      if (!toast.isActive(LOCATION_ERROR_TOAST_ID)) {
+        toast({
+          id: LOCATION_ERROR_TOAST_ID,
+          ...message,
+          status: 'error',
+          duration: 3200,
+          isClosable: true,
+        });
+      }
+    },
+    [toast],
+  );
 
   const toggleCategory = (cat) => {
     setSelectedCategories(prev => {
@@ -659,38 +822,44 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
       setIsRegionOpen(false);
       setSearchResults([]);
       setIsActionMenuOpen(false);
-    } else {
-      setIsLocating(true);
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const coords = {
-              longitude: position.coords.longitude,
-              latitude: position.coords.latitude,
-            };
-            setUserLocation(coords);
-            setLocationPermissionDenied(false);
-            glideTo(coords, 4);
-            maybeRefreshCurrentRegion(coords, true);
-            setIsLocating(false);
-          },
-          (geoError) => {
-            console.error('Location error:', geoError);
-            setLocationPermissionDenied(geoError?.code === geoError?.PERMISSION_DENIED);
-            setIsLocating(false);
-            toast({
-              title: '위치 정보를 가져올 수 없습니다.',
-              description: '기본 지도에서 탐색할 수 있지만, 현장 인증에는 위치 권한이 필요합니다.',
-              status: 'error',
-              duration: 2000,
-            });
-          },
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-        );
-      } else {
-        setIsLocating(false);
-      }
+      return;
     }
+
+    if (!isGeolocationAvailable()) {
+      setLocationPermissionDenied(false);
+      setIsLocating(true);
+      void moveToIpLocationEstimate().then((didMove) => {
+        setIsLocating(false);
+        if (!didMove) {
+          showLocationErrorToast();
+        }
+      });
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        applyUserPosition(position, { centerMap: true, syncRegion: true });
+        setIsLocating(false);
+        setTargetCapsule(null);
+        setIsHudSheetCollapsed(true);
+        setIsRegionOpen(false);
+        setSearchResults([]);
+        setIsActionMenuOpen(false);
+      },
+      async (geoError) => {
+        console.error('Location error:', geoError);
+        setLocationPermissionDenied(geoError?.code === geoError?.PERMISSION_DENIED);
+        setIsLocationWatchActive(false);
+        const didMove = await moveToIpLocationEstimate();
+        setIsLocating(false);
+        if (!didMove) {
+          showLocationErrorToast(geoError);
+        }
+      },
+      GEOLOCATION_OPTIONS,
+    );
   };
 
   const filteredCapsules = allCapsules
@@ -712,7 +881,10 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
       return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
     });
 
-  const activeRegionLabel = highlightRegion?.name || currentRegion?.addressName || (userLocation ? '내 위치 탐색 중' : '국내 기본 탐색');
+  const selectedRegionLabel = highlightRegion?.name || currentRegion?.addressName;
+  const activeRegionLabel = selectedRegionLabel || (userLocation ? '내 위치 탐색 중' : '국내 기본 탐색');
+  const regionControlLabel = getCompactRegionLabel(selectedRegionLabel);
+  const gpsUserLocation = userLocation?.source === 'ip' ? null : userLocation;
   const shouldShowMapControls = isHudSheetCollapsed || !targetCapsule;
   if (error) {
     return (
@@ -1105,7 +1277,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
 
                 <HStack className="atlas-discovery-actions" spacing={2}>
                   <Button
-                    className="atlas-control-pill"
+                    className="atlas-control-pill atlas-region-pill"
                     h={{ base: '42px', md: '46px' }}
                     px={{ base: 3, md: 3.5 }}
                     leftIcon={<FiSliders />}
@@ -1116,11 +1288,14 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                       setIsCategoryOpen(false);
                     }}
                     flex={{ base: 1, md: 'initial' }}
+                    title={selectedRegionLabel || '동네 선택'}
                   >
-                    {highlightRegion?.name || currentRegion?.addressName || '동네'}
+                    <Text as="span" className="atlas-control-pill-label">
+                      {regionControlLabel}
+                    </Text>
                   </Button>
                   <Button
-                    className="atlas-control-pill"
+                    className="atlas-control-pill atlas-category-pill"
                     h={{ base: '42px', md: '46px' }}
                     px={{ base: 3, md: 3.5 }}
                     bg={isCategoryOpen ? 'var(--atlas-primary)' : 'var(--atlas-card)'}
@@ -1131,7 +1306,9 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
                     }}
                     flex={{ base: 1, md: 'initial' }}
                   >
-                    {categorySummary}
+                    <Text as="span" className="atlas-control-pill-label">
+                      {categorySummary}
+                    </Text>
                   </Button>
                   <IconButton
                     className="atlas-search-submit"
@@ -1546,7 +1723,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
       <PlantingDrawer
         isOpen={isPlantingOpen}
         onClose={() => setIsPlantingOpen(false)}
-        userLocation={userLocation}
+        userLocation={gpsUserLocation}
         selectedLocation={selectedLocation}
         onPlantSuccess={handleNewCapsule}
         userProfile={userProfile}
@@ -1555,7 +1732,7 @@ export default function ExplorerMap({ selectedLocation, onMapClick, onDashboardO
       <UnlockingOverlay
         isVisible={Boolean(unlockingCapsule)}
         capsule={unlockingCapsule}
-        userLocation={userLocation}
+        userLocation={gpsUserLocation}
         onClose={() => setUnlockingCapsule(null)}
         onUnlocked={handleUnlockSuccess}
       />

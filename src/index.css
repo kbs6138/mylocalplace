@@ -604,6 +604,7 @@ textarea:focus-visible {
 
 .atlas-discovery-actions {
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .atlas-eyebrow {
@@ -669,11 +670,30 @@ textarea:focus-visible {
   font-size: 14px !important;
   font-weight: 800 !important;
   white-space: nowrap;
+  overflow: hidden;
   min-width: 74px;
   max-width: 176px;
 }
 
+.atlas-region-pill {
+  max-width: 148px;
+}
+
+.atlas-category-pill {
+  min-width: 96px;
+  max-width: 112px;
+}
+
+.atlas-control-pill-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .atlas-control-pill .chakra-button__icon {
+  flex-shrink: 0;
   margin-inline-end: 6px;
 }
 
@@ -1271,6 +1291,18 @@ textarea:focus-visible {
 }
 
 @media (max-width: 767px) {
+  .atlas-discovery-bar {
+    flex-wrap: wrap;
+  }
+
+  .atlas-search-field {
+    flex: 1 0 100% !important;
+  }
+
+  .atlas-discovery-actions {
+    width: 100%;
+  }
+
   .atlas-filter-chip {
     height: 34px !important;
     padding-inline: 12px !important;
@@ -1289,6 +1321,15 @@ textarea:focus-visible {
     height: 42px !important;
     padding-inline: 10px !important;
     font-size: 12px !important;
+  }
+
+  .atlas-region-pill {
+    max-width: none;
+  }
+
+  .atlas-category-pill {
+    min-width: 92px;
+    max-width: none;
   }
 
   .atlas-control-pill .chakra-button__icon {
